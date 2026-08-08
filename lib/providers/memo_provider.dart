@@ -14,9 +14,12 @@ class MemoProvider extends ChangeNotifier {
   MemoProvider({
     this.clientCodeStorage = const ClientCodeStorage(),
     ApiService? apiService,
+    bool bootstrap = true,
   }) : apiService = apiService ?? ApiService.shared() {
     searchController.addListener(_filterMemos);
-    _bootstrap();
+    if (bootstrap) {
+      _bootstrap();
+    }
   }
 
   final ClientCodeStorage clientCodeStorage;
@@ -111,6 +114,8 @@ class MemoProvider extends ChangeNotifier {
     required LoginUser loginUser,
     required String productId,
     String partyIds = '',
+    String memoNumbers = '',
+    int type = 1,
   }) async {
     final response = await apiService.postRequest(
       ApiConstants.getMemoIssueSummaryDetail,
@@ -119,12 +124,12 @@ class MemoProvider extends ChangeNotifier {
         'filters': {
           'UserID': loginUser.userId,
           'BranchID': loginUser.branchId,
-          'MemoNumbers': '',
+          'MemoNumbers': memoNumbers,
           'PartyIDs': partyIds,
           'BrokerIDs': '',
           'StoneIDs': '',
-          'FromDate': loginUser.fromYear,
-          'ToDate': loginUser.toYear,
+          'FromDate': type == 1 ? loginUser.fromYear : '',
+          'ToDate': type == 1 ? loginUser.toYear : '',
           'MemoStatus': 'PENDING',
           'EntryByIds': '',
           'UpdateByIds': '',
@@ -133,7 +138,7 @@ class MemoProvider extends ChangeNotifier {
           'CertificateStatus': 'ALL',
           'ActionBy': '',
           'CurrencyBy': '',
-          'Type': 1,
+          'Type': type,
           'SellerBy': '',
           'Diamond_Type': '',
           'Growth_Type': '',
@@ -167,6 +172,90 @@ class MemoProvider extends ChangeNotifier {
       isSuccess: false,
       statusCode: '',
     );
+  }
+
+  Future<List<Diamond>> loadMemoDiamonds(String memoNumber) async {
+    final loginUser = _readSavedLoginUser();
+    if (loginUser == null) {
+      throw StateError('Login session not found. Please login again.');
+    }
+
+    final productId = await clientCodeStorage.getClientCode();
+    if (productId == null || productId.isEmpty) {
+      throw StateError('Product id not found.');
+    }
+
+    debugPrint(
+      'Memo detail filter → Type=2, MemoNumbers=$memoNumber, '
+      'Product_ID=$productId',
+    );
+
+    final response = await apiService.postRequest(
+      ApiConstants.getMemoIssueSummaryDetail,
+      data: {
+        'login': loginUser.toJson(),
+        'filters': {
+          'UserID': loginUser.userId,
+          'BranchID': loginUser.branchId,
+          'MemoNumbers': memoNumber,
+          'PartyIDs': '',
+          'BrokerIDs': '',
+          'StoneIDs': '',
+          'FromDate': '',
+          'ToDate': '',
+          'MemoStatus': 'PENDING',
+          'EntryByIds': '',
+          'UpdateByIds': '',
+          'VoucherType': '',
+          'IsOverDue': false,
+          'CertificateStatus': 'ALL',
+          'ActionBy': '',
+          'CurrencyBy': '',
+          'Type': 2,
+          'SellerBy': '',
+          'Diamond_Type': '',
+          'Growth_Type': '',
+          'Department_ID': '',
+          'DeliverByIds': loginUser.userId.toString(),
+          'DeliveredStatus': 'ALL',
+          'ProductId': productId,
+        },
+        'Product_ID': productId,
+      },
+    );
+
+    final raw = response.data;
+    final map = raw is Map<String, dynamic>
+        ? raw
+        : (raw is Map ? Map<String, dynamic>.from(raw) : null);
+
+    if (map == null) {
+      throw StateError('Invalid response from server');
+    }
+
+    final error = map['Error']?.toString().trim() ?? '';
+    final isSuccess = _asApiSuccess(map['IsSuccess']);
+    if (!isSuccess || error.isNotEmpty) {
+      final message = map['Message']?.toString().trim() ?? '';
+      throw StateError(
+        error.isNotEmpty
+            ? error
+            : (message.isNotEmpty ? message : 'Unable to load diamond details'),
+      );
+    }
+
+    final diamonds = parseMemoDiamondsFromResponse(map);
+    debugPrint(
+      'Memo diamonds loaded → memo=$memoNumber, count=${diamonds.length}',
+    );
+    return diamonds;
+  }
+
+  bool _asApiSuccess(dynamic value) {
+    if (value is bool) return value;
+    if (value is String) return value.toLowerCase() == 'true';
+    if (value is num) return value != 0;
+    return false;
   }
 
   Future<void> loadParties({String query = ''}) async {
@@ -262,6 +351,10 @@ class MemoProvider extends ChangeNotifier {
       }
 
       final partyIds = _selectedParty?.ledgerId.toString() ?? '';
+      debugPrint(
+        'Memo filter → PartyIDs=$partyIds, '
+        'party=${_selectedParty?.displayName ?? 'All'}',
+      );
       final response = await getMemoIssueSummary(
         loginUser: loginUser,
         productId: productId,

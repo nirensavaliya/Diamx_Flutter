@@ -9,17 +9,27 @@ import '../../utills/app_font.dart';
 class PdfPreviewScreen extends StatelessWidget {
   const PdfPreviewScreen({
     super.key,
-    required this.filePath,
+    this.filePath,
+    this.networkUrl,
     this.title = 'PDF Preview',
-  });
+  }) : assert(
+         filePath != null || networkUrl != null,
+         'Provide filePath or networkUrl',
+       );
 
-  final String filePath;
+  final String? filePath;
+  final String? networkUrl;
   final String title;
 
   @override
   Widget build(BuildContext context) {
-    final file = File(filePath);
-    final fileName = filePath.split(Platform.pathSeparator).last;
+    final localPath = filePath?.trim() ?? '';
+    final url = networkUrl?.trim() ?? '';
+    final localFile = localPath.isNotEmpty ? File(localPath) : null;
+    final hasLocalFile = localFile != null && localFile.existsSync();
+    final subtitle = hasLocalFile
+        ? localPath.split(Platform.pathSeparator).last
+        : (url.isNotEmpty ? url : 'PDF');
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -38,7 +48,7 @@ class PdfPreviewScreen extends StatelessWidget {
               ),
             ),
             Text(
-              fileName,
+              subtitle,
               style: TextStyle(
                 fontFamily: FontFamily.montserratRegular,
                 fontSize: 11,
@@ -50,8 +60,11 @@ class PdfPreviewScreen extends StatelessWidget {
           ],
         ),
       ),
-      body: !file.existsSync()
-          ? Center(
+      body: url.isNotEmpty
+          ? SfPdfViewer.network(url)
+          : hasLocalFile
+          ? SfPdfViewer.file(localFile)
+          : Center(
               child: Text(
                 'PDF file not found',
                 style: TextStyle(
@@ -59,8 +72,7 @@ class PdfPreviewScreen extends StatelessWidget {
                   color: AppColors.textSecondary,
                 ),
               ),
-            )
-          : SfPdfViewer.file(file),
+            ),
     );
   }
 }

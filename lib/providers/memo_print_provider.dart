@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
+import '../constant/api_constants.dart';
 import '../models/login.dart';
 import '../models/memo.dart';
 import '../services/api_service.dart';
@@ -34,6 +37,7 @@ class MemoPrintProvider extends ChangeNotifier {
   bool _isGenerating = false;
   bool _isUploadingSignature = false;
   String? _lastSavedPath;
+  String? _lastPdfUrl;
   String? _errorMessage;
   String? _signatureMessage;
   bool _shouldOpenSettings = false;
@@ -49,6 +53,7 @@ class MemoPrintProvider extends ChangeNotifier {
       _selectedDiamondIds.length == memo.diamonds.length &&
       memo.diamonds.isNotEmpty;
   String? get lastSavedPath => _lastSavedPath;
+  String? get lastPdfUrl => _lastPdfUrl;
   String? get errorMessage => _errorMessage;
   String? get signatureMessage => _signatureMessage;
   bool get shouldOpenSettings => _shouldOpenSettings;
@@ -155,6 +160,7 @@ class MemoPrintProvider extends ChangeNotifier {
         signatureBytes: signatureBytes,
         loginJson: loginUser.toJson(),
         productId: productId,
+        memoNumbers: memo.id,
         fileName: fileName,
       );
 
@@ -197,15 +203,82 @@ class MemoPrintProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final selectedDiamonds = memo.diamonds
-          .where((diamond) => _selectedDiamondIds.contains(diamond.id))
-          .toList();
-      _lastSavedPath = await pdfService.generateAndShareMemo(
-        memo: memo,
-        diamonds: selectedDiamonds,
-        signature: _signature,
-        sharePositionOrigin: sharePositionOrigin,
+      final loginUser = _readSavedLoginUser();
+      if (loginUser == null) {
+        _errorMessage = 'Login session not found. Please login again.';
+        return false;
+      }
+
+      final productId = await clientCodeStorage.getClientCode();
+      if (productId == null || productId.isEmpty) {
+        _errorMessage = 'Product id not found.';
+        return false;
+      }
+
+      final tranId = memo.memoId.toString();
+      debugPrint(
+        'Print PDF → Tran_Id=$tranId, Memo_No=${memo.id}, '
+        'Product_ID=$productId',
       );
+
+      final response = await apiService.postRequest(
+        ApiConstants.getPrintUrlPath,
+        data: {
+          'login': loginUser.toJson(),
+          'Obj': {
+            'FormType': 'Memo Issue',
+            'Tran_Id': tranId,
+            'Transaction_No': memo.id,
+            'PrintID': 1,
+          },
+          'Product_ID': productId,
+        },
+      );
+
+      final raw = response.data;
+      final map = raw is Map<String, dynamic>
+          ? raw
+          : (raw is Map ? Map<String, dynamic>.from(raw) : null);
+
+      if (map == null) {
+        _errorMessage = 'Invalid response from server';
+        return false;
+      }
+
+      final error = map['Error']?.toString().trim() ?? '';
+      final message = map['Message']?.toString().trim() ?? '';
+      if (!_isSuccess(map) || error.isNotEmpty) {
+        _errorMessage = error.isNotEmpty
+            ? error
+            : (message.isNotEmpty ? message : 'Unable to get print PDF');
+        return false;
+      }
+
+      final pdfUrl = map['Result']?.toString().trim() ?? '';
+      if (pdfUrl.isEmpty) {
+        _errorMessage = 'Print PDF url not found';
+        return false;
+      }
+
+      debugPrint('Print PDF url → $pdfUrl');
+      _lastPdfUrl = pdfUrl;
+
+      final directory = await getApplicationDocumentsDirectory();
+      final safeMemoNo = memo.id.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      final fileName = 'Diamx_${safeMemoNo}_Memo.pdf';
+      final savePath = '${directory.path}${Platform.pathSeparator}$fileName';
+
+      try {
+        _lastSavedPath = await apiService.downloadFile(
+          url: pdfUrl,
+          savePath: savePath,
+        );
+        debugPrint('Print PDF saved → $_lastSavedPath');
+      } catch (downloadError) {
+        debugPrint('Print PDF download ERROR: $downloadError');
+        _lastSavedPath = null;
+      }
+
       return true;
     } catch (error) {
       debugPrint('PDF ERROR: $error');

@@ -22,6 +22,82 @@ class Diamond {
   final double ppc;
   final double dollarPrice;
   final double total;
+
+  factory Diamond.fromApiJson(Map<String, dynamic> json) {
+    final id = _firstNonEmpty([
+      json['Stone_ID'],
+      json['Stock_ID'],
+      json['ID'],
+      json['Id'],
+      json['StoneId'],
+    ]);
+    final stockNumber = _firstNonEmpty([
+      json['Stock_No'],
+      json['StockNumber'],
+      json['Stone_No'],
+      json['Certificate_No'],
+      json['Lab_Report_No'],
+      json['RFId'],
+      json['RFID'],
+    ]);
+    final shape = _firstNonEmpty([
+      json['Shape_Name'],
+      json['Shape'],
+      json['ShapeName'],
+    ]);
+    final color = _firstNonEmpty([
+      json['Color'],
+      json['Colour'],
+      json['Color_Name'],
+    ]);
+    final clarity = _firstNonEmpty([
+      json['Clarity'],
+      json['Clarity_Name'],
+    ]);
+    final carat = _firstDouble([
+      json['Issue_Cts'],
+      json['Carat'],
+      json['Cts'],
+      json['Weight'],
+      json['Total_Carat'],
+      json['PendingCts'],
+    ]);
+    final ppc = _firstDouble([
+      json['Price'],
+      json['PPC'],
+      json['Asking_Rate'],
+      json['Price_Per_Cts'],
+      json['Avg_Rate'],
+      json['Average_Price'],
+      json['Rate'],
+    ]);
+    final dollarPrice = _firstDouble([
+      json['Dollar_Price'],
+      json['Dollar_Amt'],
+      json['Amount'],
+      json['Total_Amt'],
+      json['Net_Amt'],
+    ]);
+    final total = _firstDouble([
+      json['Total'],
+      json['Net_Amt'],
+      json['Total_Amt'],
+      json['PendingAmount'],
+      json['Amount'],
+    ]);
+
+    return Diamond(
+      id: id.isNotEmpty ? id : stockNumber,
+      stockNumber: stockNumber.isNotEmpty ? stockNumber : id,
+      shape: shape,
+      carat: carat,
+      color: color,
+      clarity: clarity,
+      ppc: ppc,
+      dollarPrice: dollarPrice != 0 ? dollarPrice : total,
+      total: total != 0 ? total : dollarPrice,
+    );
+  }
 }
 
 class MemoIssueSummaryResponse {
@@ -159,6 +235,32 @@ class Memo {
     };
   }
 
+  Memo copyWith({List<Diamond>? diamonds}) {
+    return Memo(
+      id: id,
+      memoId: memoId,
+      name: name,
+      description: description,
+      customerName: customerName,
+      date: date,
+      dateLabel: dateLabel,
+      ppc: ppc,
+      dollarPrice: dollarPrice,
+      total: total,
+      status: status,
+      diamonds: diamonds ?? this.diamonds,
+      branchName: branchName,
+      currencyName: currencyName,
+      totalCarat: totalCarat,
+      pendingStone: pendingStone,
+      pendingCts: pendingCts,
+      pendingAmount: pendingAmount,
+      billType: billType,
+      memoStatusRaw: memoStatusRaw,
+      salesPerson: salesPerson,
+    );
+  }
+
   factory Memo.fromApiJson(Map<String, dynamic> json) {
     final memoNo = json['Memo_No']?.toString() ?? '';
     final partyName = json['Party_Name']?.toString() ?? '';
@@ -256,4 +358,38 @@ bool _asBool(dynamic value) {
   if (value is num) return value != 0;
   final text = value?.toString().toLowerCase();
   return text == 'true' || text == '1' || text == 'yes';
+}
+
+String _firstNonEmpty(List<dynamic> values) {
+  for (final value in values) {
+    final text = value?.toString().trim() ?? '';
+    if (text.isNotEmpty && text.toLowerCase() != 'null') return text;
+  }
+  return '';
+}
+
+double _firstDouble(List<dynamic> values) {
+  for (final value in values) {
+    final parsed = _asDouble(value);
+    if (parsed != 0) return parsed;
+  }
+  return 0;
+}
+
+List<Diamond> parseMemoDiamondsFromResponse(Map<String, dynamic> json) {
+  final diamonds = <Diamond>[];
+  final rawResult = json['Result'];
+  if (rawResult is! Map) return diamonds;
+
+  final rawRows = Map<String, dynamic>.from(rawResult)['rows'];
+  if (rawRows is! List) return diamonds;
+
+  for (final item in rawRows) {
+    if (item is Map<String, dynamic>) {
+      diamonds.add(Diamond.fromApiJson(item));
+    } else if (item is Map) {
+      diamonds.add(Diamond.fromApiJson(Map<String, dynamic>.from(item)));
+    }
+  }
+  return diamonds;
 }

@@ -1,15 +1,56 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/memo.dart';
+import '../../providers/memo_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../utills/app_colors.dart';
 import '../../utills/app_font.dart';
 import '../../utills/app_images.dart';
 
-class MemoDetailScreen extends StatelessWidget {
+class MemoDetailScreen extends StatefulWidget {
   const MemoDetailScreen({super.key, required this.memo});
 
   final Memo memo;
+
+  @override
+  State<MemoDetailScreen> createState() => _MemoDetailScreenState();
+}
+
+class _MemoDetailScreenState extends State<MemoDetailScreen> {
+  late Memo _memo;
+  bool _isDiamondsLoading = true;
+  String? _diamondsError;
+
+  @override
+  void initState() {
+    super.initState();
+    _memo = widget.memo;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadDiamonds());
+  }
+
+  Future<void> _loadDiamonds() async {
+    setState(() {
+      _isDiamondsLoading = true;
+      _diamondsError = null;
+    });
+
+    try {
+      final diamonds =
+          await context.read<MemoProvider>().loadMemoDiamonds(_memo.id);
+      if (!mounted) return;
+      setState(() {
+        _memo = _memo.copyWith(diamonds: diamonds);
+        _isDiamondsLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _diamondsError = error.toString().replaceFirst('Bad state: ', '');
+        _isDiamondsLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +123,7 @@ class MemoDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              memo.id,
+              _memo.id,
               style: TextStyle(
                 fontFamily: FontFamily.montserratMedium,
                 color: AppColors.white.withValues(alpha: 0.68),
@@ -96,9 +137,9 @@ class MemoDetailScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
         children: [
-          _MemoHeader(memo: memo),
+          _MemoHeader(memo: _memo),
           const SizedBox(height: 16),
-          _InformationCard(memo: memo),
+          _InformationCard(memo: _memo),
           const SizedBox(height: 22),
           Row(
             children: [
@@ -124,7 +165,7 @@ class MemoDetailScreen extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  '${memo.diamonds.length} Diamonds',
+                  '${_memo.diamonds.length} Diamonds',
                   style: TextStyle(
                     fontFamily: FontFamily.montserratSemiBold,
                     color: AppColors.primaryDark,
@@ -135,12 +176,37 @@ class MemoDetailScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          ...memo.diamonds.map(
-            (diamond) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _DiamondDetailCard(diamond: diamond),
+          if (_isDiamondsLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 28),
+              child: Center(
+                child: SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                ),
+              ),
+            )
+          else if (_diamondsError != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                _diamondsError!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: FontFamily.montserratMedium,
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            )
+          else
+            ..._memo.diamonds.map(
+              (diamond) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _DiamondDetailCard(diamond: diamond),
+              ),
             ),
-          ),
         ],
       ),
       bottomNavigationBar: SafeArea(
@@ -182,7 +248,7 @@ class MemoDetailScreen extends StatelessWidget {
                 onPressed: () => Navigator.pushNamed(
                   context,
                   AppRoutes.memoPrint,
-                  arguments: memo,
+                  arguments: _memo,
                 ),
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.transparent,

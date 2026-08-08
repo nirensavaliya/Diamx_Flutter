@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http_parser/http_parser.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../constant/api_constants.dart';
 import '../routes/app_routes.dart';
@@ -29,6 +28,7 @@ class ApiService {
 
   final NavigationService? navigationService;
   late final Dio _dio;
+  bool _isLoggingOut = false;
 
   void _createDio() {
     _dio = Dio(
@@ -54,18 +54,90 @@ class ApiService {
 
     _dio.interceptors.add(
       InterceptorsWrapper(
+        onResponse: (response, handler) async {
+          if (_isUnauthorized(response)) {
+            await _forceLogoutIfNeeded(response.requestOptions.path);
+          }
+          return handler.next(response);
+        },
         onError: (error, handler) async {
-          if (error.response?.statusCode == 401) {
-            debugPrint('Token expired → clearing session');
-            await GetStorageData.removeData(GetStorageData.token);
-            await GetStorageData.removeData(GetStorageData.userType);
-            await GetStorageData.removeData(GetStorageData.isOtpVerified);
-            navigationService?.offAllNamed(AppRoutes.login);
+          final response = error.response;
+          if (response != null && _isUnauthorized(response)) {
+            await _forceLogoutIfNeeded(error.requestOptions.path);
+          } else if (error.response?.statusCode == 401) {
+            await _forceLogoutIfNeeded(error.requestOptions.path);
           }
           return handler.next(error);
         },
       ),
     );
+  }
+
+  bool _shouldSkipAutoLogout(String path) {
+    // Only skip the login API itself so failed login does not loop.
+    return path.contains(ApiConstants.login);
+  }
+
+  bool _isUnauthorized(Response response) {
+    if (response.statusCode == 401) return true;
+
+    final map = _asResponseMap(response.data);
+    if (map == null) return false;
+
+    final statusCode = map['StatusCode']?.toString().trim() ?? '';
+    if (statusCode == '401') return true;
+
+    if (_asBool(map['IsSessionExpire'])) return true;
+
+    final message = map['Message']?.toString().toLowerCase() ?? '';
+    if (message.contains('session is expire') ||
+        message.contains('session expired') ||
+        message.contains('session expire')) {
+      return true;
+    }
+
+    return false;
+  }
+
+  Map<String, dynamic>? _asResponseMap(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    if (data is String && data.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(data);
+        if (decoded is Map<String, dynamic>) return decoded;
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  bool _asBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final text = value?.toString().toLowerCase().trim() ?? '';
+    return text == 'true' || text == '1' || text == 'yes';
+  }
+
+  Future<void> _forceLogoutIfNeeded(String path) async {
+    if (_shouldSkipAutoLogout(path) || _isLoggingOut) return;
+
+    _isLoggingOut = true;
+    debugPrint('⚠️ Session expired / 401 → Auto logout');
+
+    try {
+      await GetStorageData.removeData(GetStorageData.loginData);
+      await GetStorageData.removeData(GetStorageData.token);
+      await GetStorageData.removeData(GetStorageData.userId);
+      await GetStorageData.removeData(GetStorageData.currencyCode);
+      await GetStorageData.removeData(GetStorageData.userType);
+      await GetStorageData.removeData(GetStorageData.isOtpVerified);
+      navigationService?.offAllNamed(AppRoutes.login);
+    } finally {
+      Future<void>.delayed(const Duration(seconds: 1), () {
+        _isLoggingOut = false;
+      });
+    }
   }
 
   void updateBaseUrl(String url) {
@@ -119,12 +191,12 @@ class ApiService {
     Map<String, String>? headers,
   }) async {
     try {
+      // Let Dio set multipart Content-Type WITH boundary from FormData.
+      // Do not force "multipart/form-data" without boundary (breaks ASP.NET).
       final mergedHeaders = <String, dynamic>{
         ...?headers,
       };
-      // Force boundary so ASP.NET can parse multipart (BaseOptions JSON CT must not win).
-      mergedHeaders[Headers.contentTypeHeader] =
-          'multipart/form-data; boundary=${formData.boundary}';
+      mergedHeaders.remove(Headers.contentTypeHeader);
 
       final response = await _dio.post(
         endpoint,
@@ -132,6 +204,7 @@ class ApiService {
         queryParameters: queryParams,
         options: Options(
           headers: mergedHeaders,
+          contentType: null,
           validateStatus: (status) => true,
         ),
       );
@@ -149,6 +222,7 @@ class ApiService {
     required Uint8List signatureBytes,
     required Map<String, dynamic> loginJson,
     required String productId,
+    String memoNumbers = '',
     String fileName = 'signature.png',
   }) async {
     final safeFileName =
@@ -160,28 +234,53 @@ class ApiService {
       loginPayload['Product_ID'] = productId;
     }
 
+    final userId = loginPayload['UserID'];
+    final branchId = loginPayload['Branch_Id'];
+    final fromDate = loginPayload['FromYear']?.toString() ?? '';
+    final toDate = loginPayload['ToYear']?.toString() ?? '';
+
     final dataJson = jsonEncode({
       'login': loginPayload,
+      'filters': {
+        'UserID': userId,
+        'BranchID': branchId,
+        'MemoNumbers': memoNumbers,
+        'PartyIDs': '',
+        'BrokerIDs': '',
+        'StoneIDs': '',
+        'FromDate': fromDate,
+        'ToDate': toDate,
+        'MemoStatus': 'PENDING',
+        'EntryByIds': '',
+        'UpdateByIds': '',
+        'VoucherType': '',
+        'IsOverDue': false,
+        'CertificateStatus': 'ALL',
+        'ActionBy': '',
+        'CurrencyBy': '',
+        'Type': 1,
+        'SellerBy': '',
+        'Diamond_Type': '',
+        'Growth_Type': '',
+        'Department_ID': '',
+        'DeliverByIds': userId?.toString() ?? '',
+        'DeliveredStatus': 'ALL',
+        'ProductId': productId,
+      },
       'Product_ID': productId,
     });
 
     debugPrint(
       'savePrintUrlPath → file=$safeFileName '
-      'bytes=${signatureBytes.length} mime=image/$mimeSubtype',
+      'bytes=${signatureBytes.length} mime=image/$mimeSubtype '
+      'MemoNumbers=$memoNumbers',
     );
     debugPrint('savePrintUrlPath → data=$dataJson');
 
-    File? tempFile;
     try {
-      final dir = await getTemporaryDirectory();
-      tempFile = File(
-        '${dir.path}/signature_upload_${DateTime.now().millisecondsSinceEpoch}_$safeFileName',
-      );
-      await tempFile.writeAsBytes(signatureBytes, flush: true);
-
       final formData = FormData.fromMap({
-        'SignaturePath': await MultipartFile.fromFile(
-          tempFile.path,
+        'SignaturePath': MultipartFile.fromBytes(
+          signatureBytes,
           filename: safeFileName,
           contentType: MediaType('image', mimeSubtype),
         ),
@@ -205,12 +304,9 @@ class ApiService {
       }
 
       return {'IsSuccess': false, 'Message': 'Invalid response from server'};
-    } finally {
-      try {
-        if (tempFile != null && await tempFile.exists()) {
-          await tempFile.delete();
-        }
-      } catch (_) {}
+    } catch (e) {
+      debugPrint('savePrintUrlPath ERROR: $e');
+      rethrow;
     }
   }
 
@@ -276,5 +372,37 @@ class ApiService {
     if (raw is Map) return Map<String, dynamic>.from(raw);
 
     return {'IsSuccess': false, 'Message': 'Invalid response from server'};
+  }
+
+  /// Download a remote file (absolute URL) to [savePath].
+  /// Uses a dedicated Dio so PDF bytes skip API log/auth interceptors.
+  Future<String> downloadFile({
+    required String url,
+    required String savePath,
+  }) async {
+    try {
+      final downloadDio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 60),
+          responseType: ResponseType.bytes,
+          followRedirects: true,
+          validateStatus: (status) => status != null && status >= 200 && status < 400,
+        ),
+      );
+
+      final response = await downloadDio.get<List<int>>(url);
+      final bytes = response.data;
+      if (bytes == null || bytes.isEmpty) {
+        throw Exception('Downloaded PDF is empty');
+      }
+
+      final file = File(savePath);
+      await file.parent.create(recursive: true);
+      await file.writeAsBytes(bytes, flush: true);
+      return savePath;
+    } on DioException catch (e) {
+      throw Exception(e.message ?? 'Unable to download file');
+    }
   }
 }

@@ -15,6 +15,9 @@ class ApiConstants {
   /// Upload print / digital signature image.
   static const String savePrintUrlPath = 'save-Print-Url-Path';
 
+  /// Get server print PDF URL for a transaction.
+  static const String getPrintUrlPath = 'get-Print-Url-Path';
+
   /// Memo issue summary / list.
   static const String getMemoIssueSummaryDetail = 'get-memo-issue-summary-detail';
 }

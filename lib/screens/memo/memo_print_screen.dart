@@ -282,7 +282,9 @@ class MemoPrintScreen extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'PDF saved successfully',
+          provider.lastSavedPath != null
+              ? 'PDF saved successfully'
+              : 'Opening PDF...',
           style: TextStyle(fontFamily: FontFamily.montserratMedium),
         ),
         backgroundColor: AppColors.primaryDark,
@@ -290,11 +292,19 @@ class MemoPrintScreen extends StatelessWidget {
     );
 
     final path = provider.lastSavedPath;
-    if (path == null || !context.mounted) return;
+    final url = provider.lastPdfUrl;
+    if ((path == null || path.isEmpty) && (url == null || url.isEmpty)) {
+      return;
+    }
+    if (!context.mounted) return;
 
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => PdfPreviewScreen(filePath: path, title: 'Memo PDF'),
+        builder: (_) => PdfPreviewScreen(
+          filePath: path,
+          networkUrl: url,
+          title: 'Memo PDF',
+        ),
       ),
     );
   }

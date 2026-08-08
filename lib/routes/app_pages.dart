@@ -43,7 +43,10 @@ class AppPages {
     ),
     AppRoutes.memoDetail: (context) {
       final memo = ModalRoute.of(context)!.settings.arguments! as Memo;
-      return MemoDetailScreen(memo: memo);
+      return ChangeNotifierProvider(
+        create: (_) => MemoProvider(bootstrap: false),
+        child: MemoDetailScreen(memo: memo),
+      );
     },
     AppRoutes.memoPrint: (context) {
       final memo = ModalRoute.of(context)!.settings.arguments! as Memo;

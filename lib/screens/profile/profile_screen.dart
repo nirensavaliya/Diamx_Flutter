@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
+import '../../models/login.dart';
 import '../../services/client_code_storage.dart';
+import '../../services/get_stroage_data.dart';
 import '../../utills/app_colors.dart';
 import '../../utills/app_font.dart';
 import '../../utills/global.dart';
@@ -10,6 +14,12 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = _readSavedLoginUser();
+    final fullName = _displayValue(user?.fullName);
+    final loginName = _displayValue(user?.loginName);
+    final companyName = _displayValue(user?.companyName);
+    final accountType = _accountTypeLabel(user);
+
     return Column(
       children: [
         const _ProfileAppBar(),
@@ -19,7 +29,10 @@ class ProfileScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _ProfileHeroCard(),
+                _ProfileHeroCard(
+                  fullName: fullName,
+                  accountType: accountType,
+                ),
                 const SizedBox(height: 26),
                 Text(
                   'Account Information',
@@ -39,24 +52,24 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                const _ProfileInfoTile(
+                _ProfileInfoTile(
                   icon: Icons.person_outline_rounded,
                   title: 'Username',
-                  value: 'Diamx User',
+                  value: loginName,
                   color: AppColors.primary,
                 ),
                 const SizedBox(height: 11),
-                const _ProfileInfoTile(
+                _ProfileInfoTile(
                   icon: Icons.business_outlined,
                   title: 'Company',
-                  value: 'Diamx Jewellery',
+                  value: companyName,
                   color: AppColors.accentDark,
                 ),
                 const SizedBox(height: 11),
-                const _ProfileInfoTile(
+                _ProfileInfoTile(
                   icon: Icons.verified_user_outlined,
                   title: 'Account Type',
-                  value: 'Premium Member',
+                  value: accountType,
                   color: AppColors.success,
                 ),
                 const SizedBox(height: 11),
@@ -79,6 +92,32 @@ class ProfileScreen extends StatelessWidget {
       ],
     );
   }
+}
+
+LoginUser? _readSavedLoginUser() {
+  final raw = GetStorageData.readString(GetStorageData.loginData);
+  if (raw == null || raw.isEmpty) return null;
+
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) return null;
+    final result = LoginResult.fromJson(Map<String, dynamic>.from(decoded));
+    return result.login;
+  } catch (_) {
+    return null;
+  }
+}
+
+String _displayValue(String? value) {
+  final text = value?.trim() ?? '';
+  return text.isEmpty ? '-' : text;
+}
+
+String _accountTypeLabel(LoginUser? user) {
+  if (user == null) return '-';
+  if (user.isSuperAdmin) return 'Super Admin';
+  if (user.isAdmin) return 'Admin';
+  return 'User';
 }
 
 class _ProfileAppBar extends StatelessWidget {
@@ -147,7 +186,13 @@ class _ProfileAppBar extends StatelessWidget {
 }
 
 class _ProfileHeroCard extends StatelessWidget {
-  const _ProfileHeroCard();
+  const _ProfileHeroCard({
+    required this.fullName,
+    required this.accountType,
+  });
+
+  final String fullName;
+  final String accountType;
 
   @override
   Widget build(BuildContext context) {
@@ -203,7 +248,7 @@ class _ProfileHeroCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Diamx User',
+                  fullName,
                   style: TextStyle(
                     fontFamily: FontFamily.montserratBold,
                     color: AppColors.white,
@@ -221,7 +266,7 @@ class _ProfileHeroCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'PREMIUM MEMBER',
+                    accountType.toUpperCase(),
                     style: TextStyle(
                       fontFamily: FontFamily.montserratSemiBold,
                       color: AppColors.primaryDark,
