@@ -1,0 +1,402 @@
+import 'package:flutter/material.dart';
+
+import '../../services/client_code_storage.dart';
+import '../../utills/app_colors.dart';
+import '../../utills/app_font.dart';
+import '../../utills/global.dart';
+
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const _ProfileAppBar(),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _ProfileHeroCard(),
+                const SizedBox(height: 26),
+                Text(
+                  'Account Information',
+                  style: TextStyle(
+                    fontFamily: FontFamily.montserratBold,
+                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Your diamond workspace details',
+                  style: TextStyle(
+                    fontFamily: FontFamily.montserratRegular,
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const _ProfileInfoTile(
+                  icon: Icons.person_outline_rounded,
+                  title: 'Username',
+                  value: 'Diamx User',
+                  color: AppColors.primary,
+                ),
+                const SizedBox(height: 11),
+                const _ProfileInfoTile(
+                  icon: Icons.business_outlined,
+                  title: 'Company',
+                  value: 'Diamx Jewellery',
+                  color: AppColors.accentDark,
+                ),
+                const SizedBox(height: 11),
+                const _ProfileInfoTile(
+                  icon: Icons.verified_user_outlined,
+                  title: 'Account Type',
+                  value: 'Premium Member',
+                  color: AppColors.success,
+                ),
+                const SizedBox(height: 11),
+                const _ClientCodeTile(),
+                const SizedBox(height: 26),
+                Text(
+                  'Settings',
+                  style: TextStyle(
+                    fontFamily: FontFamily.montserratBold,
+                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _LogoutTile(onTap: () => showLogoutDialog(context)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileAppBar extends StatelessWidget {
+  const _ProfileAppBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.primaryDark, AppColors.primary, Color(0xFF14634E)],
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -22,
+            top: -20,
+            child: Icon(
+              Icons.person_outline_rounded,
+              size: 120,
+              color: AppColors.white.withValues(alpha: 0.08),
+            ),
+          ),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Profile',
+                          style: TextStyle(
+                            fontFamily: FontFamily.montserratBold,
+                            color: AppColors.white,
+                            fontSize: 22,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Manage your account',
+                          style: TextStyle(
+                            fontFamily: FontFamily.montserratRegular,
+                            color: AppColors.white.withValues(alpha: 0.7),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileHeroCard extends StatelessWidget {
+  const _ProfileHeroCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(22, 26, 0, 20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.primaryDark, AppColors.primary, Color(0xFF14634E)],
+        ),
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.22),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -28,
+            bottom: -40,
+            child: Icon(
+              Icons.diamond_outlined,
+              size: 130,
+              color: AppColors.white.withValues(alpha: 0.08),
+            ),
+          ),
+          Center(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 86,
+                  height: 86,
+                  decoration: BoxDecoration(
+                    color: AppColors.white.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppColors.accent.withValues(alpha: 0.55),
+                      width: 1.6,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.person_rounded,
+                    color: AppColors.white,
+                    size: 42,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Diamx User',
+                  style: TextStyle(
+                    fontFamily: FontFamily.montserratBold,
+                    color: AppColors.white,
+                    fontSize: 20,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'PREMIUM MEMBER',
+                    style: TextStyle(
+                      fontFamily: FontFamily.montserratSemiBold,
+                      color: AppColors.primaryDark,
+                      fontSize: 9,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileInfoTile extends StatelessWidget {
+  const _ProfileInfoTile({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.9)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryDark.withValues(alpha: 0.045),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontFamily: FontFamily.montserratRegular,
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontFamily: FontFamily.montserratSemiBold,
+                    color: AppColors.textPrimary,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ClientCodeTile extends StatelessWidget {
+  const _ClientCodeTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String?>(
+      future: const ClientCodeStorage().getClientCode(),
+      builder: (context, snapshot) {
+        final code = snapshot.data;
+        return _ProfileInfoTile(
+          icon: Icons.vpn_key_outlined,
+          title: 'Client Code',
+          value: (code == null || code.isEmpty) ? 'Not saved' : code,
+          color: AppColors.primaryLight,
+        );
+      },
+    );
+  }
+}
+
+class _LogoutTile extends StatelessWidget {
+  const _LogoutTile({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.error.withValues(alpha: 0.18)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  color: AppColors.error,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Logout',
+                      style: TextStyle(
+                        fontFamily: FontFamily.montserratSemiBold,
+                        color: AppColors.error,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Sign out from your account',
+                      style: TextStyle(
+                        fontFamily: FontFamily.montserratRegular,
+                        color: AppColors.textSecondary,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.error.withValues(alpha: 0.7),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
