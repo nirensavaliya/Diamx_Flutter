@@ -7,6 +7,7 @@ import '../../routes/app_routes.dart';
 import '../../utills/app_colors.dart';
 import '../../utills/app_font.dart';
 import '../../utills/app_images.dart';
+import '../../widgets/app_list_shimmer.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/app_party_dropdown.dart';
 
@@ -243,14 +244,14 @@ class MemoScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              if (provider.memos.isEmpty)
+              if (provider.isMemosLoading)
+                const AppListCardShimmer()
+              else if (provider.memos.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: Center(
                     child: Text(
-                      provider.isMemosLoading
-                          ? 'Loading memos...'
-                          : (provider.memosError ?? 'No matching memos found'),
+                      provider.memosError ?? 'No matching memos found',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontFamily: FontFamily.montserratMedium,

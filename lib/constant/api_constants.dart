@@ -8,8 +8,6 @@ class ApiConstants {
   /// User login.
   static const String login = 'login';
   static const String getPartyList = 'get-party-list';
-
-  /// User logout.
   static const String logout = 'logout';
 
   /// Upload print / digital signature image.
@@ -18,6 +16,12 @@ class ApiConstants {
   /// Get server print PDF URL for a transaction.
   static const String getPrintUrlPath = 'get-Print-Url-Path';
 
+  /// Available print templates for a form (Memo Issue, etc.).
+  static const String getPrintListDetail = 'get-Print-List-detail';
+
   /// Memo issue summary / list.
   static const String getMemoIssueSummaryDetail = 'get-memo-issue-summary-detail';
+
+  /// Invoice summary / list.
+  static const String getInvoiceSummaryDetail = 'get-invoice-summary-detail';
 }

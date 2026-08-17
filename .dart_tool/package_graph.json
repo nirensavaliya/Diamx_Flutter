@@ -22,6 +22,7 @@
         "provider",
         "share_plus",
         "shared_preferences",
+        "shimmer",
         "syncfusion_flutter_pdfviewer",
         "toastification",
         "video_player"
@@ -68,6 +69,13 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "shimmer",
+      "version": "3.0.0",
+      "dependencies": [
+        "flutter"
       ]
     },
     {

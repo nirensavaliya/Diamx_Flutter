@@ -1,19 +1,65 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/invoice.dart';
+import '../../providers/invoice_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../utills/app_colors.dart';
 import '../../utills/app_font.dart';
 import '../../utills/app_images.dart';
+import '../../widgets/app_loader.dart';
 
-class InvoiceDetailScreen extends StatelessWidget {
+class InvoiceDetailScreen extends StatefulWidget {
   const InvoiceDetailScreen({super.key, required this.invoice});
 
   final Invoice invoice;
 
   @override
+  State<InvoiceDetailScreen> createState() => _InvoiceDetailScreenState();
+}
+
+class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
+  late Invoice _invoice;
+  bool _isItemsLoading = true;
+  String? _itemsError;
+
+  @override
+  void initState() {
+    super.initState();
+    _invoice = widget.invoice;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadItems());
+  }
+
+  Future<void> _loadItems() async {
+    setState(() {
+      _isItemsLoading = true;
+      _itemsError = null;
+    });
+
+    try {
+      final items = await context.read<InvoiceProvider>().loadInvoiceItems(
+        _invoice.id,
+      );
+      if (!mounted) return;
+      setState(() {
+        _invoice = _invoice.copyWith(items: items);
+        _isItemsLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _itemsError = error.toString().replaceFirst('Bad state: ', '');
+        _isItemsLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         toolbarHeight: 90,
@@ -80,25 +126,25 @@ class InvoiceDetailScreen extends StatelessWidget {
                 fontSize: 19,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              invoice.id,
-              style: TextStyle(
-                fontFamily: FontFamily.montserratMedium,
-                color: AppColors.white.withValues(alpha: 0.68),
-                fontSize: 9.5,
-                letterSpacing: 0.8,
-              ),
-            ),
+            // const SizedBox(height: 4),
+            // Text(
+            //   _invoice.id,
+            //   style: TextStyle(
+            //     fontFamily: FontFamily.montserratMedium,
+            //     color: AppColors.white.withValues(alpha: 0.68),
+            //     fontSize: 9.5,
+            //     letterSpacing: 0.8,
+            //   ),
+            // ),
           ],
         ),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
         children: [
-          _InvoiceHeader(invoice: invoice),
+          _InvoiceHeader(invoice: _invoice),
           const SizedBox(height: 16),
-          _BillingCard(invoice: invoice),
+          _BillingCard(invoice: _invoice),
           const SizedBox(height: 22),
           Row(
             children: [
@@ -121,7 +167,7 @@ class InvoiceDetailScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '${invoice.items.length} Diamonds',
+                  '${_invoice.diamondCount} Diamonds',
                   style: TextStyle(
                     fontFamily: FontFamily.montserratSemiBold,
                     color: AppColors.primary,
@@ -132,12 +178,39 @@ class InvoiceDetailScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          ...invoice.items.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 11),
-              child: _InvoiceItemCard(item: item),
+          if (_itemsError != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                _itemsError!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: FontFamily.montserratMedium,
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            )
+          else if (!_isItemsLoading && _invoice.items.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                'No diamond details found',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: FontFamily.montserratMedium,
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            )
+          else if (!_isItemsLoading)
+            ..._invoice.items.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 11),
+                child: _InvoiceItemCard(item: item),
+              ),
             ),
-          ),
         ],
       ),
       bottomNavigationBar: SafeArea(
@@ -165,7 +238,7 @@ class InvoiceDetailScreen extends StatelessWidget {
               onPressed: () => Navigator.pushNamed(
                 context,
                 AppRoutes.invoicePrint,
-                arguments: invoice,
+                arguments: _invoice,
               ),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
@@ -187,6 +260,10 @@ class InvoiceDetailScreen extends StatelessWidget {
           ),
         ),
       ),
+        ),
+        if (_isItemsLoading)
+          const FullScreenLoader(message: 'Loading diamonds...'),
+      ],
     );
   }
 }

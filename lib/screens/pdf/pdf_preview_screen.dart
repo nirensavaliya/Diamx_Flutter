@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
+import '../../routes/app_routes.dart';
 import '../../utills/app_colors.dart';
 import '../../utills/app_font.dart';
 
@@ -37,6 +38,16 @@ class PdfPreviewScreen extends StatelessWidget {
         backgroundColor: AppColors.primaryDark,
         surfaceTintColor: Colors.transparent,
         foregroundColor: AppColors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          onPressed: () {
+            Navigator.of(context).pop();
+            // Navigator.of(context).pushNamedAndRemoveUntil(
+            //   AppRoutes.main,
+            //   (route) => false,
+            // );
+          },
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

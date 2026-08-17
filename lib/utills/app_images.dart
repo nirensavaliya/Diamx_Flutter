@@ -4,4 +4,5 @@ class AppImages{
   static const String appLogo = "assets/images/app_logo.jpeg";
   static const String imgTwoDiamond = "assets/images/img_two_diamond.png";
   static const String imgDiamond = "assets/images/img_diamond.png";
+  static const String videoDiamondForSplash = "assets/videos/diamond_spin.mp4";
 }

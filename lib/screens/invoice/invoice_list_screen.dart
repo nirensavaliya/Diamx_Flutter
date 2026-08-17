@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../models/invoice.dart';
 import '../../providers/invoice_provider.dart';
 import '../../routes/app_routes.dart';
+import '../../widgets/app_list_shimmer.dart';
+import '../../widgets/app_loader.dart';
 import '../../utills/app_colors.dart';
 import '../../utills/app_font.dart';
 
@@ -19,6 +21,7 @@ class InvoiceListScreen extends StatelessWidget {
         backgroundColor: AppColors.primaryDark,
         surfaceTintColor: Colors.transparent,
         foregroundColor: AppColors.white,
+        centerTitle: false,
         elevation: 0,
         flexibleSpace: Container(
           decoration: const BoxDecoration(
@@ -72,7 +75,7 @@ class InvoiceListScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Invoices',
+              'Sale Invoices',
               style: TextStyle(
                 fontFamily: FontFamily.montserratBold,
                 color: AppColors.white,
@@ -93,40 +96,16 @@ class InvoiceListScreen extends StatelessWidget {
       ),
       body: Consumer<InvoiceProvider>(
         builder: (context, provider, child) {
-          return CustomScrollView(
-            slivers: [
+          return Stack(
+            children: [
+              CustomScrollView(
+                slivers: [
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
                 sliver: SliverToBoxAdapter(
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _SummaryChip(
-                              label: 'Total',
-                              value: '${provider.totalInvoices}',
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _SummaryChip(
-                              label: 'Pending',
-                              value: '${provider.pendingInvoices}',
-                              color: AppColors.accentDark,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _SummaryChip(
-                              label: 'Paid',
-                              value: '${provider.paidInvoices}',
-                              color: AppColors.success,
-                            ),
-                          ),
-                        ],
-                      ),
+                      _SummarySection(provider: provider),
                       const SizedBox(height: 20),
                       Container(
                         decoration: BoxDecoration(
@@ -220,12 +199,15 @@ class InvoiceListScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              if (provider.invoices.isEmpty)
+              if (provider.isInvoicesLoading)
+                const AppListCardShimmer()
+              else if (provider.invoices.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: Center(
                     child: Text(
-                      'No matching invoices found',
+                      provider.invoicesError ?? 'No matching invoices found',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         fontFamily: FontFamily.montserratMedium,
                         color: AppColors.textSecondary,
@@ -253,11 +235,59 @@ class InvoiceListScreen extends StatelessWidget {
                   ),
                 ),
             ],
+          ),
+              if (provider.isInvoicesLoading)
+                const FullScreenLoader(message: 'Loading invoices...'),
+            ],
           );
         },
       ),
     );
   }
+}
+
+class _SummarySection extends StatelessWidget {
+  const _SummarySection({required this.provider});
+
+  final InvoiceProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _SummaryChip(
+            label: 'Pcs',
+            value: _formatNumber(provider.totalPcs),
+            color: AppColors.primary,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _SummaryChip(
+            label: 'Count',
+            value: provider.totalCount.toString(),
+            color: AppColors.accentDark,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _SummaryChip(
+            label: 'Rate',
+            value: _formatNumber(provider.totalRate),
+            color: AppColors.success,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _formatNumber(double value) {
+  if (value == value.roundToDouble()) {
+    return value.toStringAsFixed(0);
+  }
+  return value.toStringAsFixed(2);
 }
 
 class _SummaryChip extends StatelessWidget {
@@ -426,7 +456,7 @@ class _InvoiceCard extends StatelessWidget {
                   Expanded(
                     child: _InvoiceValue(
                       label: 'Items',
-                      value: '${invoice.items.length} Diamonds',
+                      value: '${invoice.diamondCount} Diamonds',
                     ),
                   ),
                   Expanded(

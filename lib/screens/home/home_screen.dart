@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/login.dart';
 import '../../models/memo.dart';
 import '../../providers/memo_provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/get_stroage_data.dart';
 import '../../utills/app_colors.dart';
 import '../../utills/app_font.dart';
 import '../../utills/app_images.dart';
@@ -35,9 +39,7 @@ class _HomeContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _WelcomeBanner(
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.memo),
-                ),
+                const _WelcomeBanner(),
                 const SizedBox(height: 26),
                 const _SectionTitle(
                   title: 'Quick Access',
@@ -59,7 +61,7 @@ class _HomeContent extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _FeatureCard(
-                        title: 'Invoice List',
+                        title: 'Invoice Delivery',
                         description: 'Track and manage all your invoices',
                         icon: Icons.receipt_long_outlined,
                         color: AppColors.accentDark,
@@ -184,12 +186,29 @@ class _HomeAppBar extends StatelessWidget {
 }
 
 class _WelcomeBanner extends StatelessWidget {
-  const _WelcomeBanner({required this.onTap});
+  const _WelcomeBanner();
 
-  final VoidCallback onTap;
+  LoginUser? _readLoginUser() {
+    final raw = GetStorageData.readString(GetStorageData.loginData);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return null;
+      return LoginResult.fromJson(Map<String, dynamic>.from(decoded)).login;
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final loginUser = _readLoginUser();
+    final userName = loginUser?.fullName.trim() ?? '';
+    final branchName = loginUser?.branchName.trim() ?? '';
+    final infoParts = <String>[
+      if (userName.isNotEmpty) userName,
+      if (branchName.isNotEmpty) branchName,
+    ];
     return Container(
       width: double.infinity,
       constraints: const BoxConstraints(minHeight: 190),
@@ -261,41 +280,31 @@ class _WelcomeBanner extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 18),
-              Material(
-                color: AppColors.accent,
-                borderRadius: BorderRadius.circular(24),
-                child: InkWell(
-                  onTap: onTap,
-                  borderRadius: BorderRadius.circular(24),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 15,
-                      vertical: 9,
+              if (infoParts.isNotEmpty) ...[
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: AppColors.white.withValues(alpha: 0.14),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'EXPLORE MEMOS',
-                          style: TextStyle(
-                            fontFamily: FontFamily.montserratBold,
-                            color: AppColors.primaryDark,
-                            fontSize: 9,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(
-                          Icons.arrow_forward_rounded,
-                          color: AppColors.primaryDark,
-                          size: 15,
-                        ),
-                      ],
+                  ),
+                  child: Text(
+                    infoParts.join(' · '),
+                    style: TextStyle(
+                      fontFamily: FontFamily.montserratSemiBold,
+                      color: AppColors.secondary,
+                      fontSize: 10,
+                      letterSpacing: 0.4,
                     ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ],

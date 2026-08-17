@@ -74,7 +74,6 @@ class ApiService {
   }
 
   bool _shouldSkipAutoLogout(String path) {
-    // Only skip the login API itself so failed login does not loop.
     return path.contains(ApiConstants.login);
   }
 
@@ -191,8 +190,7 @@ class ApiService {
     Map<String, String>? headers,
   }) async {
     try {
-      // Let Dio set multipart Content-Type WITH boundary from FormData.
-      // Do not force "multipart/form-data" without boundary (breaks ASP.NET).
+
       final mergedHeaders = <String, dynamic>{
         ...?headers,
       };
@@ -222,7 +220,11 @@ class ApiService {
     required Uint8List signatureBytes,
     required Map<String, dynamic> loginJson,
     required String productId,
-    String memoNumbers = '',
+    required int transactionId,
+    required String transactionNo,
+    String transactionType = 'Memo Issue',
+    int printId = 1,
+    int digitalSignatureId = 0,
     String fileName = 'signature.png',
   }) async {
     final safeFileName =
@@ -234,38 +236,14 @@ class ApiService {
       loginPayload['Product_ID'] = productId;
     }
 
-    final userId = loginPayload['UserID'];
-    final branchId = loginPayload['Branch_Id'];
-    final fromDate = loginPayload['FromYear']?.toString() ?? '';
-    final toDate = loginPayload['ToYear']?.toString() ?? '';
-
     final dataJson = jsonEncode({
       'login': loginPayload,
-      'filters': {
-        'UserID': userId,
-        'BranchID': branchId,
-        'MemoNumbers': memoNumbers,
-        'PartyIDs': '',
-        'BrokerIDs': '',
-        'StoneIDs': '',
-        'FromDate': fromDate,
-        'ToDate': toDate,
-        'MemoStatus': 'PENDING',
-        'EntryByIds': '',
-        'UpdateByIds': '',
-        'VoucherType': '',
-        'IsOverDue': false,
-        'CertificateStatus': 'ALL',
-        'ActionBy': '',
-        'CurrencyBy': '',
-        'Type': 1,
-        'SellerBy': '',
-        'Diamond_Type': '',
-        'Growth_Type': '',
-        'Department_ID': '',
-        'DeliverByIds': userId?.toString() ?? '',
-        'DeliveredStatus': 'ALL',
-        'ProductId': productId,
+      'Obj': {
+        'Digital_Signature_ID': digitalSignatureId,
+        'Transaction_ID': transactionId,
+        'Transaction_Type': transactionType,
+        'Transaction_No': transactionNo,
+        'Print_ID': printId,
       },
       'Product_ID': productId,
     });
@@ -273,7 +251,8 @@ class ApiService {
     debugPrint(
       'savePrintUrlPath → file=$safeFileName '
       'bytes=${signatureBytes.length} mime=image/$mimeSubtype '
-      'MemoNumbers=$memoNumbers',
+      'Transaction_ID=$transactionId Transaction_No=$transactionNo '
+      'Transaction_Type=$transactionType Print_ID=$printId',
     );
     debugPrint('savePrintUrlPath → data=$dataJson');
 

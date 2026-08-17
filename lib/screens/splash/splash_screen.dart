@@ -321,7 +321,7 @@ class _BrandSection extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          'F I N E   D I A M O N D S',
+          'D I A M X   M A N A G E M E N T',
           style: TextStyle(
             fontFamily: FontFamily.montserratMedium,
             color: AppColors.secondary,

@@ -1,16 +1,17 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
-// import 'package:flutter/rendering.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/memo.dart';
+import '../../models/print_template.dart';
 import '../../providers/memo_print_provider.dart';
 import '../../utills/app_colors.dart';
 import '../../utills/app_font.dart';
 import '../../utills/app_images.dart';
 import '../../utills/app_toast.dart';
-import '../../utills/signature_image_helper.dart';
 import '../../widgets/app_loader.dart';
 import '../pdf/pdf_preview_screen.dart';
 
@@ -180,6 +181,8 @@ class MemoPrintScreen extends StatelessWidget {
                       ),
                     ],
                     const SizedBox(height: 16),
+                    _PrintTemplateDropdown(provider: provider),
+                    const SizedBox(height: 16),
                     _SignatureSection(provider: provider),
                   ],
                 ),
@@ -257,6 +260,8 @@ class MemoPrintScreen extends StatelessWidget {
                 ),
               ),
             ),
+            if (provider.isLoadingPrintList)
+              const FullScreenLoader(message: 'Loading print options...'),
             if (provider.isGenerating)
               const FullScreenLoader(message: 'Generating PDF...'),
             if (provider.isUploadingSignature)
@@ -277,7 +282,20 @@ class MemoPrintScreen extends StatelessWidget {
         : renderBox.localToGlobal(Offset.zero) & renderBox.size;
     final success = await provider.generatePdf(sharePositionOrigin: origin);
 
-    if (!context.mounted || !success) return;
+    if (!context.mounted) return;
+
+    if (!success) {
+      final message = provider.errorMessage?.trim();
+      Utils().showToast(
+        context: context,
+        title: 'Error',
+        message: (message != null && message.isNotEmpty)
+            ? message
+            : 'Unable to generate PDF. Please try again.',
+        isSuccess: false,
+      );
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -542,6 +560,110 @@ class _SelectableDiamondCard extends StatelessWidget {
   }
 }
 
+class _PrintTemplateDropdown extends StatelessWidget {
+  const _PrintTemplateDropdown({required this.provider});
+
+  final MemoPrintProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.9)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryDark.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Print Format',
+            style: TextStyle(
+              fontFamily: FontFamily.montserratSemiBold,
+              color: AppColors.textPrimary,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<PrintTemplate>(
+            key: ValueKey(
+              '${provider.printOptions.length}-${provider.selectedPrint?.printId}',
+            ),
+            initialValue: provider.selectedPrint,
+            isExpanded: true,
+            icon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: AppColors.primary,
+              size: 20,
+            ),
+            decoration: InputDecoration(
+              hintText: provider.isLoadingPrintList
+                  ? 'Loading...'
+                  : 'Select print format',
+              errorText: provider.printListError,
+              filled: true,
+              fillColor: AppColors.white,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 14,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                  color: AppColors.secondary.withValues(alpha: 0.8),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(
+                  color: AppColors.primary,
+                  width: 1.4,
+                ),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.error),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.error),
+              ),
+            ),
+            items: provider.printOptions
+                .map(
+                  (option) => DropdownMenuItem<PrintTemplate>(
+                    value: option,
+                    child: Text(
+                      option.printName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: FontFamily.montserratMedium,
+                        fontSize: 12,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: provider.isBusy
+                ? null
+                : (value) => provider.selectPrint(value),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SignatureSection extends StatelessWidget {
   const _SignatureSection({required this.provider});
 
@@ -580,7 +702,7 @@ class _SignatureSection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(13),
                 ),
                 child: const Icon(
-                  Icons.upload_file_outlined,
+                  Icons.draw_outlined,
                   color: AppColors.secondary,
                   size: 21,
                 ),
@@ -600,7 +722,7 @@ class _SignatureSection extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Choose camera or gallery, then crop',
+                      'Draw signature, then tap Save to upload',
                       style: TextStyle(
                         fontFamily: FontFamily.montserratRegular,
                         color: AppColors.textSecondary,
@@ -633,7 +755,7 @@ class _SignatureSection extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: provider.isBusy
                       ? null
-                      : () => _uploadSignature(context),
+                      : () => _openSignaturePad(context),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
                     backgroundColor: AppColors.primary.withValues(alpha: 0.04),
@@ -645,11 +767,11 @@ class _SignatureSection extends StatelessWidget {
                       borderRadius: BorderRadius.circular(13),
                     ),
                   ),
-                  icon: const Icon(Icons.photo_library_outlined, size: 18),
+                  icon: const Icon(Icons.edit_outlined, size: 18),
                   label: Text(
                     provider.hasSignature
-                        ? 'Change Signature'
-                        : 'Upload Signature',
+                        ? 'Update Signature'
+                        : 'Add Signature',
                     style: TextStyle(
                       fontFamily: FontFamily.montserratSemiBold,
                       fontSize: 11,
@@ -675,162 +797,23 @@ class _SignatureSection extends StatelessWidget {
     );
   }
 
-  Future<void> _uploadSignature(BuildContext context) async {
-    final helper = provider.signatureImageHelper;
-
-    final source = await showModalBottomSheet<ImageSource>(
+  Future<void> _openSignaturePad(BuildContext context) async {
+    final signature = await showDialog<Uint8List>(
       context: context,
-      backgroundColor: AppColors.surface,
-      isDismissible: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 42,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  'Upload Signature',
-                  style: TextStyle(
-                    fontFamily: FontFamily.montserratBold,
-                    color: AppColors.textPrimary,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Choose camera or gallery, then crop the image',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: FontFamily.montserratRegular,
-                    color: AppColors.textSecondary,
-                    fontSize: 11.5,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.photo_camera_outlined,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  title: Text(
-                    'Camera',
-                    style: TextStyle(
-                      fontFamily: FontFamily.montserratSemiBold,
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                    ),
-                  ),
-                  subtitle: Text(
-                    'Take a new signature photo',
-                    style: TextStyle(
-                      fontFamily: FontFamily.montserratRegular,
-                      color: AppColors.textSecondary,
-                      fontSize: 11,
-                    ),
-                  ),
-                  onTap: () async {
-                    final denied = await helper.ensurePermission(
-                      ImageSource.camera,
-                    );
-                    if (!sheetContext.mounted) return;
-                    if (denied != null) {
-                      Navigator.pop(sheetContext);
-                      if (!context.mounted) return;
-                      await _handlePermissionResult(context, denied);
-                      return;
-                    }
-                    Navigator.pop(sheetContext, ImageSource.camera);
-                  },
-                ),
-                const Divider(height: 18),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.photo_library_outlined,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  title: Text(
-                    'Gallery',
-                    style: TextStyle(
-                      fontFamily: FontFamily.montserratSemiBold,
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                    ),
-                  ),
-                  subtitle: Text(
-                    'Pick an existing signature image',
-                    style: TextStyle(
-                      fontFamily: FontFamily.montserratRegular,
-                      color: AppColors.textSecondary,
-                      fontSize: 11,
-                    ),
-                  ),
-                  onTap: () async {
-                    final denied = await helper.ensurePermission(
-                      ImageSource.gallery,
-                    );
-                    if (!sheetContext.mounted) return;
-                    if (denied != null) {
-                      Navigator.pop(sheetContext);
-                      if (!context.mounted) return;
-                      await _handlePermissionResult(context, denied);
-                      return;
-                    }
-                    Navigator.pop(sheetContext, ImageSource.gallery);
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      barrierDismissible: false,
+      builder: (_) => const _SignatureDialog(),
     );
 
-    if (source == null || !context.mounted) return;
+    if (signature == null || !context.mounted) return;
 
-    final success = await provider.pickAndUploadSignature(
-      source,
-      permissionAlreadyGranted: true,
+    final success = await provider.uploadSignature(
+      signatureBytes: signature,
+      fileName: 'signature.png',
     );
     if (!context.mounted) return;
 
     final message = provider.signatureMessage;
     if (message == null || message.isEmpty) return;
-
-    if (provider.shouldOpenSettings) {
-      await _showOpenSettingsDialog(context, message);
-      return;
-    }
 
     Utils().showToast(
       context: context,
@@ -839,95 +822,8 @@ class _SignatureSection extends StatelessWidget {
       isSuccess: success,
     );
   }
-
-  Future<void> _handlePermissionResult(
-    BuildContext context,
-    SignaturePickResult denied,
-  ) async {
-    final message = denied.message ?? 'Permission required';
-    if (denied.type == SignaturePickResultType.permanentlyDenied) {
-      await _showOpenSettingsDialog(context, message);
-      return;
-    }
-    Utils().showToast(
-      context: context,
-      title: 'Error',
-      message: message,
-      isSuccess: false,
-    );
-  }
-
-  Future<void> _showOpenSettingsDialog(
-    BuildContext context,
-    String message,
-  ) async {
-    final openSettings = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Text(
-            'Permission Required',
-            style: TextStyle(
-              fontFamily: FontFamily.montserratBold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          content: Text(
-            message,
-            style: TextStyle(
-              fontFamily: FontFamily.montserratRegular,
-              color: AppColors.textSecondary,
-              fontSize: 13,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: Text(
-                'Cancel',
-                style: TextStyle(fontFamily: FontFamily.montserratMedium),
-              ),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-              ),
-              child: Text(
-                'Open Settings',
-                style: TextStyle(fontFamily: FontFamily.montserratSemiBold),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (openSettings == true) {
-      await openAppSettings();
-    }
-  }
-
-  // Old draw-pad signature flow (kept for reference).
-  // Future<void> _openSignaturePad(BuildContext context) async {
-  //   final signature = await showDialog<Uint8List>(
-  //     context: context,
-  //     barrierDismissible: false,
-  //     builder: (_) => const _SignatureDialog(),
-  //   );
-  //
-  //   if (signature != null) {
-  //     provider.setSignature(signature);
-  //   }
-  // }
 }
 
-/*
-/// OLD: Draw-on-screen signature dialog (replaced by gallery upload + API).
 class _SignatureDialog extends StatefulWidget {
   const _SignatureDialog();
 
@@ -967,33 +863,50 @@ class _SignatureDialogState extends State<_SignatureDialog> {
               ),
             ),
             const SizedBox(height: 14),
-            RepaintBoundary(
-              key: _signatureKey,
-              child: Container(
-                height: 190,
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primaryLight),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onPanStart: (details) {
-                      setState(() => _points.add(details.localPosition));
-                    },
-                    onPanUpdate: (details) {
-                      setState(() => _points.add(details.localPosition));
-                    },
-                    onPanEnd: (_) {
-                      setState(() => _points.add(null));
-                    },
-                    child: CustomPaint(
-                      painter: _SignaturePainter(_points),
-                      size: Size.infinite,
+            // Rectangular pad: border/bg for UI only; capture layer is transparent.
+            Container(
+              width: 360,
+              height: 150,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F3EC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.primaryLight),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    const ColoredBox(color: Color(0xFFF7F3EC)),
+                    Positioned.fill(
+                      child: RepaintBoundary(
+                        key: _signatureKey,
+                        child: ColoredBox(
+                          color: Colors.transparent,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onPanStart: (details) {
+                              setState(
+                                () => _points.add(details.localPosition),
+                              );
+                            },
+                            onPanUpdate: (details) {
+                              setState(
+                                () => _points.add(details.localPosition),
+                              );
+                            },
+                            onPanEnd: (_) {
+                              setState(() => _points.add(null));
+                            },
+                            child: CustomPaint(
+                              painter: _SignaturePainter(_points),
+                              child: const SizedBox.expand(),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
@@ -1061,7 +974,7 @@ class _SignaturePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.textPrimary
+      ..color = Colors.black
       ..strokeWidth = 2.2
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
@@ -1078,4 +991,4 @@ class _SignaturePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _SignaturePainter oldDelegate) => true;
 }
-*/
+

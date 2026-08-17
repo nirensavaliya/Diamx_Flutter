@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:provider/provider.dart';
+import 'package:toastification/toastification.dart';
 
 import 'providers/splash_provider.dart';
 import 'routes/app_routes.dart';
@@ -41,19 +42,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: navigationService.navigatorKey,
-      debugShowCheckedModeBanner: false,
-      initialRoute: AppRoutes.splash,
-      routes: AppPages.routes,
-      theme: ThemeData(
-        useMaterial3: true,
-        scaffoldBackgroundColor: AppColors.background,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          primary: AppColors.primary,
-          secondary: AppColors.secondary,
-          surface: AppColors.surface,
+    return ToastificationWrapper(
+      child: MaterialApp(
+        navigatorKey: navigationService.navigatorKey,
+        debugShowCheckedModeBanner: false,
+        initialRoute: AppRoutes.splash,
+        routes: AppPages.routes,
+        theme: ThemeData(
+          useMaterial3: true,
+          scaffoldBackgroundColor: AppColors.background,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: AppColors.primary,
+            primary: AppColors.primary,
+            secondary: AppColors.secondary,
+            surface: AppColors.surface,
+          ),
         ),
       ),
     );

@@ -61,7 +61,10 @@ class AppPages {
     ),
     AppRoutes.invoiceDetail: (context) {
       final invoice = ModalRoute.of(context)!.settings.arguments! as Invoice;
-      return InvoiceDetailScreen(invoice: invoice);
+      return ChangeNotifierProvider(
+        create: (_) => InvoiceProvider(bootstrap: false),
+        child: InvoiceDetailScreen(invoice: invoice),
+      );
     },
     AppRoutes.invoicePrint: (context) {
       final invoice = ModalRoute.of(context)!.settings.arguments! as Invoice;

@@ -41,6 +41,7 @@ class CompanyCodeProvider extends ChangeNotifier {
     _selectedCompany = null;
     notifyListeners();
 
+
     try {
       final response = await apiService.confirmProductId(productId: code);
       final isSuccess = _isSuccess(response);

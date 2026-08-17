@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../constant/api_constants.dart';
 import '../models/login.dart';
 import '../models/memo.dart';
+import '../models/print_template.dart';
 import '../services/api_service.dart';
 import '../services/client_code_storage.dart';
 import '../services/get_stroage_data.dart';
@@ -22,8 +23,15 @@ class MemoPrintProvider extends ChangeNotifier {
     this.clientCodeStorage = const ClientCodeStorage(),
     ApiService? apiService,
     SignatureImageHelper? signatureImageHelper,
+    bool bootstrap = true,
   }) : apiService = apiService ?? ApiService.shared(),
-       signatureImageHelper = signatureImageHelper ?? SignatureImageHelper();
+       signatureImageHelper = signatureImageHelper ?? SignatureImageHelper() {
+    if (bootstrap) {
+      Future.microtask(loadPrintList);
+    }
+  }
+
+  static const int defaultPrintId = 1;
 
   final Memo memo;
   final PdfService pdfService;
@@ -33,7 +41,13 @@ class MemoPrintProvider extends ChangeNotifier {
   final Set<String> _selectedDiamondIds = {};
 
   Uint8List? _signature;
+  String _signatureFileName = 'signature.png';
   String? _uploadedSignaturePath;
+  int _printId = defaultPrintId;
+  List<PrintTemplate> _printOptions = [];
+  PrintTemplate? _selectedPrint;
+  bool _isLoadingPrintList = false;
+  String? _printListError;
   bool _isGenerating = false;
   bool _isUploadingSignature = false;
   String? _lastSavedPath;
@@ -45,10 +59,16 @@ class MemoPrintProvider extends ChangeNotifier {
   Set<String> get selectedDiamondIds => Set.unmodifiable(_selectedDiamondIds);
   Uint8List? get signature => _signature;
   String? get uploadedSignaturePath => _uploadedSignaturePath;
+  int get printId => _printId;
+  List<PrintTemplate> get printOptions => List.unmodifiable(_printOptions);
+  PrintTemplate? get selectedPrint => _selectedPrint;
+  bool get isLoadingPrintList => _isLoadingPrintList;
+  String? get printListError => _printListError;
   bool get hasSignature => _signature != null;
   bool get isGenerating => _isGenerating;
   bool get isUploadingSignature => _isUploadingSignature;
-  bool get isBusy => _isGenerating || _isUploadingSignature;
+  bool get isBusy =>
+      _isGenerating || _isUploadingSignature || _isLoadingPrintList;
   bool get isAllSelected =>
       _selectedDiamondIds.length == memo.diamonds.length &&
       memo.diamonds.isNotEmpty;
@@ -78,20 +98,124 @@ class MemoPrintProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Old local-only signature (draw pad) — kept for reference.
-  // void setSignature(Uint8List signature) {
-  //   _signature = signature;
-  //   notifyListeners();
-  // }
-
   void clearSignature() {
     _signature = null;
+    _signatureFileName = 'signature.png';
     _uploadedSignaturePath = null;
     _signatureMessage = null;
     _shouldOpenSettings = false;
     notifyListeners();
   }
 
+  void selectPrint(PrintTemplate? template) {
+    if (template == null) return;
+    _selectedPrint = template;
+    _printId = template.printId;
+    notifyListeners();
+  }
+
+  /// Load print templates when print screen opens — `get-Print-List-detail`.
+  Future<void> loadPrintList() async {
+    _isLoadingPrintList = true;
+    _printListError = null;
+    notifyListeners();
+
+    try {
+      final loginUser = _readSavedLoginUser();
+      if (loginUser == null) {
+        _printListError = 'Login session not found. Please login again.';
+        return;
+      }
+
+      final productId = await clientCodeStorage.getClientCode();
+      if (productId == null || productId.isEmpty) {
+        _printListError = 'Product id not found.';
+        return;
+      }
+
+      final loginPayload = loginUser.toJson();
+      if ((loginPayload['Product_ID']?.toString() ?? '').trim().isEmpty) {
+        loginPayload['Product_ID'] = productId;
+      }
+
+      final response = await apiService.postRequest(
+        ApiConstants.getPrintListDetail,
+        data: {
+          'login': loginPayload,
+          'Form_Name': 'Memo Issue',
+          'Product_ID': productId,
+        },
+      );
+
+      final raw = response.data;
+      final map = raw is Map<String, dynamic>
+          ? raw
+          : (raw is Map ? Map<String, dynamic>.from(raw) : null);
+
+      if (map == null) {
+        _printListError = 'Invalid response from server';
+        _printOptions = [];
+        _selectedPrint = null;
+        return;
+      }
+
+      final error = map['Error']?.toString().trim() ?? '';
+      final message = map['Message']?.toString().trim() ?? '';
+      if (!_isSuccess(map) || error.isNotEmpty) {
+        _printListError = error.isNotEmpty
+            ? error
+            : (message.isNotEmpty ? message : 'Unable to load print list');
+        _printOptions = [];
+        _selectedPrint = null;
+        return;
+      }
+
+      final result = map['Result'];
+      final list = <PrintTemplate>[];
+      if (result is List) {
+        for (final item in result) {
+          if (item is Map) {
+            final template = PrintTemplate.fromJson(
+              Map<String, dynamic>.from(item),
+            );
+            if (template.isActive && template.printId > 0) {
+              list.add(template);
+            }
+          }
+        }
+      }
+      list.sort((a, b) => a.seqNo.compareTo(b.seqNo));
+
+      _printOptions = list;
+      if (list.isEmpty) {
+        _selectedPrint = null;
+        _printId = defaultPrintId;
+        _printListError = 'No print templates found';
+      } else {
+        PrintTemplate selected = list.first;
+        for (final item in list) {
+          if (item.printId == _printId) {
+            selected = item;
+            break;
+          }
+        }
+        _selectedPrint = selected;
+        _printId = selected.printId;
+      }
+
+      debugPrint('Print list loaded → count=${list.length}, selected Print_ID=$_printId',);
+    } catch (error) {
+      debugPrint('loadPrintList ERROR: $error');
+      _printListError = 'Unable to load print list. Please try again.';
+      _printOptions = [];
+      _selectedPrint = null;
+    } finally {
+      _isLoadingPrintList = false;
+      notifyListeners();
+    }
+  }
+
+  /// Pick signature then upload via `save-Print-Url-Path` (same Print_ID).
   Future<bool> pickAndUploadSignature(
     ImageSource source, {
     bool permissionAlreadyGranted = false,
@@ -156,11 +280,19 @@ class MemoPrintProvider extends ChangeNotifier {
         return false;
       }
 
+      debugPrint(
+        'Signature upload → save-Print-Url-Path '
+        'Transaction_ID=${memo.memoId}, Print_ID=$_printId',
+      );
+
       final response = await apiService.savePrintUrlPath(
         signatureBytes: signatureBytes,
         loginJson: loginUser.toJson(),
         productId: productId,
-        memoNumbers: memo.id,
+        transactionId: memo.memoId,
+        transactionNo: memo.id,
+        transactionType: 'Memo Issue',
+        printId: _printId,
         fileName: fileName,
       );
 
@@ -176,6 +308,7 @@ class MemoPrintProvider extends ChangeNotifier {
       }
 
       _signature = signatureBytes;
+      _signatureFileName = fileName;
       _uploadedSignaturePath = _extractUploadedPath(response);
       _signatureMessage = message.isNotEmpty
           ? message
@@ -191,6 +324,7 @@ class MemoPrintProvider extends ChangeNotifier {
     }
   }
 
+  /// Generate PDF via `get-Print-Url-Path` only (no save).
   Future<bool> generatePdf({Rect? sharePositionOrigin}) async {
     if (_selectedDiamondIds.isEmpty) {
       _errorMessage = 'Select at least one diamond';
@@ -215,30 +349,16 @@ class MemoPrintProvider extends ChangeNotifier {
         return false;
       }
 
-      final tranId = memo.memoId.toString();
       debugPrint(
-        'Print PDF → Tran_Id=$tranId, Memo_No=${memo.id}, '
-        'Product_ID=$productId',
+        'Generate PDF → get-Print-Url-Path '
+        'Tran_Id=${memo.memoId}, Memo_No=${memo.id}, PrintID=$_printId',
       );
 
-      final response = await apiService.postRequest(
-        ApiConstants.getPrintUrlPath,
-        data: {
-          'login': loginUser.toJson(),
-          'Obj': {
-            'FormType': 'Memo Issue',
-            'Tran_Id': tranId,
-            'Transaction_No': memo.id,
-            'PrintID': 1,
-          },
-          'Product_ID': productId,
-        },
+      final map = await _callGetPrintUrlPath(
+        loginUser: loginUser,
+        productId: productId,
+        printId: _printId,
       );
-
-      final raw = response.data;
-      final map = raw is Map<String, dynamic>
-          ? raw
-          : (raw is Map ? Map<String, dynamic>.from(raw) : null);
 
       if (map == null) {
         _errorMessage = 'Invalid response from server';
@@ -288,6 +408,31 @@ class MemoPrintProvider extends ChangeNotifier {
       _isGenerating = false;
       notifyListeners();
     }
+  }
+
+  Future<Map<String, dynamic>?> _callGetPrintUrlPath({
+    required LoginUser loginUser,
+    required String productId,
+    required int printId,
+  }) async {
+    final response = await apiService.postRequest(
+      ApiConstants.getPrintUrlPath,
+      data: {
+        'login': loginUser.toJson(),
+        'Obj': {
+          'FormType': 'Memo Issue',
+          'Tran_Id': memo.memoId.toString(),
+          'Transaction_No': memo.id,
+          'PrintID': printId,
+        },
+        'Product_ID': productId,
+      },
+    );
+
+    final raw = response.data;
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
   }
 
   LoginUser? _readSavedLoginUser() {

@@ -1,3 +1,4 @@
+import 'package:diamax_flutter/utills/app_images.dart';
 import 'package:video_player/video_player.dart';
 
 /// Preloads the splash diamond video at app startup so the splash screen
@@ -12,7 +13,7 @@ class SplashVideo {
     if (controller != null) return;
 
     final videoController = VideoPlayerController.asset(
-      'assets/videos/diamond_spin.mp4',
+      AppImages.videoDiamondForSplash,
     );
     try {
       videoController
@@ -21,7 +22,6 @@ class SplashVideo {
       ready = videoController.initialize().catchError((_) {});
       controller = videoController;
     } catch (_) {
-      // Video playback unavailable on this platform; splash falls back.
     }
   }
 
@@ -29,7 +29,6 @@ class SplashVideo {
     try {
       controller?.dispose();
     } catch (_) {
-      // Platform view unavailable.
     }
     controller = null;
     ready = null;

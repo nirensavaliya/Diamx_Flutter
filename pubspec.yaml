@@ -50,6 +50,7 @@ dependencies:
   image_cropper: ^12.2.1
   permission_handler: ^13.0.0
   http_parser: ^4.1.2
+  shimmer: ^3.0.0
 
 
 

@@ -7,6 +7,7 @@ import '../../routes/app_routes.dart';
 import '../../utills/app_colors.dart';
 import '../../utills/app_font.dart';
 import '../../utills/app_images.dart';
+import '../../widgets/app_loader.dart';
 
 class MemoDetailScreen extends StatefulWidget {
   const MemoDetailScreen({super.key, required this.memo});
@@ -54,7 +55,10 @@ class _MemoDetailScreenState extends State<MemoDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         toolbarHeight: 90,
@@ -121,16 +125,16 @@ class _MemoDetailScreenState extends State<MemoDetailScreen> {
                 fontSize: 19,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              _memo.id,
-              style: TextStyle(
-                fontFamily: FontFamily.montserratMedium,
-                color: AppColors.white.withValues(alpha: 0.68),
-                fontSize: 9.5,
-                letterSpacing: 0.8,
-              ),
-            ),
+            // const SizedBox(height: 4),
+            // Text(
+            //   _memo.id,
+            //   style: TextStyle(
+            //     fontFamily: FontFamily.montserratMedium,
+            //     color: AppColors.white.withValues(alpha: 0.68),
+            //     fontSize: 9.5,
+            //     letterSpacing: 0.8,
+            //   ),
+            // ),
           ],
         ),
       ),
@@ -176,18 +180,7 @@ class _MemoDetailScreenState extends State<MemoDetailScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          if (_isDiamondsLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 28),
-              child: Center(
-                child: SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: CircularProgressIndicator(strokeWidth: 2.4),
-                ),
-              ),
-            )
-          else if (_diamondsError != null)
+          if (_diamondsError != null)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Text(
@@ -200,7 +193,7 @@ class _MemoDetailScreenState extends State<MemoDetailScreen> {
                 ),
               ),
             )
-          else
+          else if (!_isDiamondsLoading)
             ..._memo.diamonds.map(
               (diamond) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -272,6 +265,10 @@ class _MemoDetailScreenState extends State<MemoDetailScreen> {
           ),
         ),
       ),
+        ),
+        if (_isDiamondsLoading)
+          const FullScreenLoader(message: 'Loading diamonds...'),
+      ],
     );
   }
 }
