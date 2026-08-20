@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 
@@ -26,6 +27,8 @@ class LoginProvider extends ChangeNotifier {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   bool _isBranchesLoading = false;
+  int _secretTapCount = 0;
+  Timer? _secretTapResetTimer;
   String? _usernameError;
   String? _passwordError;
   String? _branchError;
@@ -46,6 +49,22 @@ class LoginProvider extends ChangeNotifier {
   List<Branch> get branches => List.unmodifiable(_branches);
   Branch? get selectedBranch => _selectedBranch;
   LoginResult? get loginResult => _loginResult;
+
+  Future<bool> registerSecretTap() async {
+    _secretTapResetTimer?.cancel();
+    _secretTapResetTimer = Timer(const Duration(seconds: 2), () {
+      _secretTapCount = 0;
+    });
+
+    _secretTapCount++;
+    if (_secretTapCount >= 5) {
+      _secretTapCount = 0;
+      _secretTapResetTimer?.cancel();
+      await clientCodeStorage.clearClientCode();
+      return true;
+    }
+    return false;
+  }
 
   void togglePasswordVisibility() {
     _isPasswordVisible = !_isPasswordVisible;
@@ -250,6 +269,7 @@ class LoginProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _secretTapResetTimer?.cancel();
     usernameController.dispose();
     passwordController.dispose();
     super.dispose();

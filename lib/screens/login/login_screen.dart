@@ -25,22 +25,36 @@ class LoginScreen extends StatelessWidget {
           return Stack(
             fit: StackFit.expand,
             children: [
-              Scaffold(
-                backgroundColor: AppColors.background,
-                body: SingleChildScrollView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  child: Column(
-                    children: [
-                      const _LoginHeader(),
-                      Transform.translate(
-                        offset: const Offset(0, -42),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: _LoginCard(provider: provider),
+              GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: () async {
+                  final shouldOpenCompanyCode =
+                      await provider.registerSecretTap();
+                  if (!context.mounted) return;
+                  if (shouldOpenCompanyCode) {
+                    Navigator.pushReplacementNamed(
+                      context,
+                      AppRoutes.companyCode,
+                    );
+                  }
+                },
+                child: Scaffold(
+                  backgroundColor: AppColors.background,
+                  body: SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    child: Column(
+                      children: [
+                        const _LoginHeader(),
+                        Transform.translate(
+                          offset: const Offset(0, -42),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: _LoginCard(provider: provider),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

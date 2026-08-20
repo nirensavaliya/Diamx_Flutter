@@ -19,4 +19,9 @@ class ClientCodeStorage {
     final preferences = await SharedPreferences.getInstance();
     return preferences.setString(_clientCodeKey, clientCode);
   }
+
+  Future<bool> clearClientCode() async {
+    final preferences = await SharedPreferences.getInstance();
+    return preferences.remove(_clientCodeKey);
+  }
 }

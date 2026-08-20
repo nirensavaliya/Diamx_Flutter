@@ -117,6 +117,42 @@ class MemoProvider extends ChangeNotifier {
     String memoNumbers = '',
     int type = 1,
   }) async {
+
+    final requestData = {
+      'login': loginUser.toJson(),
+      'filters': {
+        'UserID': loginUser.userId,
+        'BranchID': loginUser.branchId,
+        'MemoNumbers': memoNumbers,
+        'PartyIDs': partyIds,
+        'BrokerIDs': '',
+        'StoneIDs': '',
+        'FromDate': type == 1 ? loginUser.fromYear : '',
+        'ToDate': type == 1 ? loginUser.toYear : '',
+        'MemoStatus': 'PENDING',
+        'EntryByIds': '',
+        'UpdateByIds': '',
+        'VoucherType': '',
+        'IsOverDue': false,
+        'CertificateStatus': 'ALL',
+        'ActionBy': '',
+        'CurrencyBy': '',
+        'Type': type,
+        'SellerBy': '',
+        'Diamond_Type': '',
+        'Growth_Type': '',
+        'Department_ID': '',
+        'DeliverByIds': loginUser.userId.toString(),
+        'DeliveredStatus': 'ALL',
+        'ProductId': productId,
+      },
+      'Product_ID': productId,
+    };
+    // REQUEST print
+    debugPrint(
+      'Memo summary REQUEST → ${const JsonEncoder.withIndent('  ').convert(requestData)}',
+    );
+
     final response = await apiService.postRequest(
       ApiConstants.getMemoIssueSummaryDetail,
       data: {
@@ -151,6 +187,7 @@ class MemoProvider extends ChangeNotifier {
       },
     );
 
+    print('response------${response.data}');
     final raw = response.data;
     if (raw is Map<String, dynamic>) {
       return MemoIssueSummaryResponse.fromJson(raw);
