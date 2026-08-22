@@ -2,17 +2,130 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/memo.dart';
+import '../../providers/memo_print_provider.dart';
 import '../../providers/memo_provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/api_service.dart';
 import '../../utills/app_colors.dart';
 import '../../utills/app_font.dart';
 import '../../utills/app_images.dart';
+import '../../utills/app_toast.dart';
+import '../../utills/pdf_file_helper.dart';
 import '../../widgets/app_list_shimmer.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/app_party_dropdown.dart';
+import '../../widgets/delivery_info_dialog.dart';
 
-class MemoScreen extends StatelessWidget {
+class MemoScreen extends StatefulWidget {
   const MemoScreen({super.key});
+
+  @override
+  State<MemoScreen> createState() => _MemoScreenState();
+}
+
+class _MemoScreenState extends State<MemoScreen> {
+  String? _downloadingMemoId;
+
+  bool _isDelivered(Memo memo) {
+    final raw = memo.memoStatusRaw.trim().toUpperCase();
+    if (raw.contains('DELIVERED')) return true;
+    if (raw.contains('PENDING')) return false;
+    return memo.status == MemoStatus.dispatched;
+  }
+
+  Future<void> _downloadDeliveredPdf(Memo memo) async {
+    if (_downloadingMemoId != null) return;
+
+    setState(() => _downloadingMemoId = memo.id);
+    final printProvider = MemoPrintProvider(memo, bootstrap: false);
+    if (memo.diamonds.isNotEmpty) {
+      printProvider.toggleSelectAll();
+    }
+
+    try {
+      await printProvider.loadPrintList();
+      if (!mounted) return;
+
+      if (printProvider.printListError != null &&
+          printProvider.printListError!.trim().isNotEmpty &&
+          printProvider.printOptions.isEmpty) {
+        Utils().showToast(
+          context: context,
+          title: 'Error',
+          message: printProvider.printListError!,
+          isSuccess: false,
+        );
+        return;
+      }
+
+      final success = await printProvider.generatePdf(autoDownload: false);
+      if (!mounted) return;
+
+      if (!success) {
+        Utils().showToast(
+          context: context,
+          title: 'Error',
+          message: printProvider.errorMessage?.trim().isNotEmpty == true
+              ? printProvider.errorMessage!
+              : 'Unable to generate PDF.',
+          isSuccess: false,
+        );
+        return;
+      }
+
+      final url = printProvider.lastPdfUrl?.trim() ?? '';
+      if (url.isEmpty) {
+        Utils().showToast(
+          context: context,
+          title: 'Error',
+          message: 'PDF url not found.',
+          isSuccess: false,
+        );
+        return;
+      }
+
+      final safeId = memo.id.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      final fileName = 'Diamx_${safeId}_Memo.pdf';
+      final path = await PdfFileHelper.downloadAndSavePdf(
+        url: url,
+        fileName: fileName,
+        downloadFile: ApiService.shared().downloadFile,
+      );
+      if (!mounted) return;
+
+      // Clear loader before toast so success is visible.
+      setState(() => _downloadingMemoId = null);
+
+      if (PdfFileHelper.needsUserSavePicker) {
+        await PdfFileHelper.shareLocalFile(
+          context: context,
+          filePath: path,
+          title: 'Memo PDF · ${memo.id}',
+        );
+      } else {
+        Utils().showToast(
+          context: context,
+          title: 'Success',
+          message: 'PDF saved to Downloads.',
+          isSuccess: true,
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _downloadingMemoId = null);
+      Utils().showToast(
+        context: context,
+        title: 'Error',
+        message: PdfFileHelper.errorMessage(error),
+        isSuccess: false,
+      );
+    } finally {
+      printProvider.dispose();
+      if (mounted && _downloadingMemoId != null) {
+        setState(() => _downloadingMemoId = null);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -130,74 +243,7 @@ class MemoScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(17),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.primaryDark.withValues(
-                                      alpha: 0.07,
-                                    ),
-                                    blurRadius: 16,
-                                    offset: const Offset(0, 7),
-                                  ),
-                                ],
-                              ),
-                              child: TextField(
-                                controller: provider.searchController,
-                                style: TextStyle(
-                                  fontFamily: FontFamily.montserratMedium,
-                                  color: AppColors.textPrimary,
-                                  fontSize: 13,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Search memo by name or number',
-                                  hintStyle: TextStyle(
-                                    fontFamily: FontFamily.montserratRegular,
-                                    color: AppColors.textSecondary,
-                                    fontSize: 11.5,
-                                  ),
-                                  prefixIcon: Padding(
-                                    padding: const EdgeInsets.all(10),
-                                    child: Container(
-                                      width: 34,
-                                      height: 34,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary.withValues(
-                                          alpha: 0.09,
-                                        ),
-                                        borderRadius: BorderRadius.circular(11),
-                                      ),
-                                      child: const Icon(
-                                        Icons.search_rounded,
-                                        color: AppColors.primary,
-                                        size: 19,
-                                      ),
-                                    ),
-                                  ),
-                                  filled: true,
-                                  fillColor: AppColors.surface,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(17),
-                                    borderSide: BorderSide(
-                                      color: AppColors.secondary.withValues(
-                                        alpha: 0.8,
-                                      ),
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(17),
-                                    borderSide: const BorderSide(
-                                      color: AppColors.primary,
-                                      width: 1.4,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
+                            child: _DeliveredStatusDropdown(provider: provider),
                           ),
                           const SizedBox(width: 10),
                           SizedBox(
@@ -205,6 +251,75 @@ class MemoScreen extends StatelessWidget {
                             child: PartyDropdown(provider: provider),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(17),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primaryDark.withValues(
+                                alpha: 0.07,
+                              ),
+                              blurRadius: 16,
+                              offset: const Offset(0, 7),
+                            ),
+                          ],
+                        ),
+                        child: TextField(
+                          controller: provider.searchController,
+                          style: TextStyle(
+                            fontFamily: FontFamily.montserratMedium,
+                            color: AppColors.textPrimary,
+                            fontSize: 13,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Search memo by name or number',
+                            hintStyle: TextStyle(
+                              fontFamily: FontFamily.montserratRegular,
+                              color: AppColors.textSecondary,
+                              fontSize: 11.5,
+                            ),
+                            prefixIcon: Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.09,
+                                  ),
+                                  borderRadius: BorderRadius.circular(11),
+                                ),
+                                child: const Icon(
+                                  Icons.search_rounded,
+                                  color: AppColors.primary,
+                                  size: 19,
+                                ),
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: AppColors.surface,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 16,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(17),
+                              borderSide: BorderSide(
+                                color: AppColors.secondary.withValues(
+                                  alpha: 0.8,
+                                ),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(17),
+                              borderSide: const BorderSide(
+                                color: AppColors.primary,
+                                width: 1.4,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 24),
                       Row(
@@ -270,6 +385,9 @@ class MemoScreen extends StatelessWidget {
                       final memo = provider.memos[index];
                       return _MemoCard(
                         memo: memo,
+                        isDelivered: _isDelivered(memo),
+                        isDownloading: _downloadingMemoId == memo.id,
+                        onDownload: () => _downloadDeliveredPdf(memo),
                         onTap: () => Navigator.pushNamed(
                           context,
                           AppRoutes.memoDetail,
@@ -285,9 +403,93 @@ class MemoScreen extends StatelessWidget {
                 const FullScreenLoader(message: 'Loading parties...'),
               if (provider.isMemosLoading && !provider.isPartiesLoading)
                 const FullScreenLoader(message: 'Loading memos...'),
+              if (_downloadingMemoId != null)
+                const FullScreenLoader(message: 'Downloading PDF...'),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _DeliveredStatusDropdown extends StatelessWidget {
+  const _DeliveredStatusDropdown({required this.provider});
+
+  final MemoProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(17),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryDark.withValues(alpha: 0.07),
+            blurRadius: 16,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey(provider.selectedDeliveredStatus),
+        initialValue: provider.selectedDeliveredStatus,
+        isExpanded: true,
+        icon: const Icon(
+          Icons.keyboard_arrow_down_rounded,
+          color: AppColors.primary,
+          size: 20,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Status',
+          filled: true,
+          fillColor: AppColors.surface,
+          prefixIcon: const Icon(
+            Icons.filter_list_rounded,
+            color: AppColors.primary,
+            size: 18,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 14,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(17),
+            borderSide: BorderSide(
+              color: AppColors.secondary.withValues(alpha: 0.8),
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(17),
+            borderSide: const BorderSide(
+              color: AppColors.primary,
+              width: 1.4,
+            ),
+          ),
+        ),
+        items: MemoProvider.deliveredStatusOptions
+            .map(
+              (status) => DropdownMenuItem<String>(
+                value: status,
+                child: Text(
+                  status,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: FontFamily.montserratMedium,
+                    fontSize: 12,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            )
+            .toList(),
+        onChanged: provider.isMemosLoading
+            ? null
+            : (status) {
+                if (status == null) return;
+                provider.selectDeliveredStatus(status);
+              },
       ),
     );
   }
@@ -300,30 +502,54 @@ class _SummarySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _SummaryChip(
-            label: 'Pcs',
-            value: _formatNumber(provider.totalPcs),
-            color: AppColors.primary,
-          ),
+        Row(
+          children: [
+            // Expanded(
+            //   child: _SummaryChip(
+            //     label: 'Pcs',
+            //     value: _formatNumber(provider.totalPcs),
+            //     color: AppColors.primary,
+            //   ),
+            // ),
+            // const SizedBox(width: 8),
+            Expanded(
+              child: _SummaryChip(
+                label: 'Count',
+                value: provider.totalCount.toString(),
+                color: AppColors.accentDark,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _SummaryChip(
+                label: 'AvgRate',
+                value: _formatNumber(provider.totalRate),
+                color: AppColors.success,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _SummaryChip(
-            label: 'Count',
-            value: provider.totalCount.toString(),
-            color: AppColors.accentDark,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _SummaryChip(
-            label: 'Rate',
-            value: _formatNumber(provider.totalRate),
-            color: AppColors.success,
-          ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _SummaryChip(
+                label: 'Total Amt',
+                value: _formatNumber(provider.totalAmt),
+                color: AppColors.primaryDark,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _SummaryChip(
+                label: 'Total CTC',
+                value: _formatNumber(provider.totalCts),
+                color: AppColors.accent,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -394,15 +620,30 @@ class _SummaryChip extends StatelessWidget {
 }
 
 class _MemoCard extends StatelessWidget {
-  const _MemoCard({required this.memo, required this.onTap});
+  const _MemoCard({
+    required this.memo,
+    required this.onTap,
+    required this.isDelivered,
+    required this.isDownloading,
+    required this.onDownload,
+  });
 
   final Memo memo;
   final VoidCallback onTap;
+  final bool isDelivered;
+  final bool isDownloading;
+  final VoidCallback onDownload;
 
   @override
   Widget build(BuildContext context) {
     final isPending = memo.status == MemoStatus.pending;
     final statusColor = isPending ? AppColors.accentDark : AppColors.success;
+    final pcsValue = memo.totalPcs > 0
+        ? _formatNumber(memo.totalPcs)
+        : memo.pendingStone.toString();
+    final finalAmt = memo.dollarPrice != 0
+        ? memo.dollarPrice
+        : (memo.total != 0 ? memo.total : memo.pendingAmount);
 
     return Material(
       color: AppColors.surface,
@@ -477,7 +718,9 @@ class _MemoCard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  memo.name,
+                                  memo.customerName.isNotEmpty
+                                      ? memo.customerName
+                                      : memo.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
@@ -490,7 +733,8 @@ class _MemoCard extends StatelessWidget {
                                 Text(
                                   [
                                     memo.id,
-                                    if (memo.dateLabel.isNotEmpty) memo.dateLabel,
+                                    if (memo.dateLabel.isNotEmpty)
+                                      memo.dateLabel,
                                   ].join(' · '),
                                   style: TextStyle(
                                     fontFamily: FontFamily.montserratMedium,
@@ -499,6 +743,19 @@ class _MemoCard extends StatelessWidget {
                                     letterSpacing: 0.3,
                                   ),
                                 ),
+                                if (memo.entryBy.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Entry By: ${memo.entryBy}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: FontFamily.montserratRegular,
+                                      color: AppColors.textSecondary,
+                                      fontSize: 9.5,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -523,19 +780,40 @@ class _MemoCard extends StatelessWidget {
                               ),
                             ),
                           ),
+                          const SizedBox(width: 4),
+                          Material(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            shape: const CircleBorder(),
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: () => DeliveryInfoDialog.showForMemo(
+                                context: context,
+                                title: 'Delivery Info · ${memo.id}',
+                                billingCompanyName: memo.billingCompanyName,
+                                billingName: memo.billingName,
+                                billingAddress: memo.billingAddress,
+                                shippingCompanyName: memo.shippingCompanyName,
+                                shippingAddress: memo.shippingAddress,
+                                cityName: memo.cityName,
+                                stateName: memo.stateName,
+                                deliverBy: memo.deliverBy,
+                                deliverAssignBy: memo.deliverAssignBy,
+                                deliverDate: memo.deliverDate,
+                                deliveredDate: memo.deliveredDate,
+                                mailTelephoneNo: memo.mailTelephoneNo,
+                                shipTelephoneNo: memo.shipTelephoneNo,
+                              ),
+                              child: const Padding(
+                                padding: EdgeInsets.all(6),
+                                child: Icon(
+                                  Icons.info_outline_rounded,
+                                  size: 16,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
-                      ),
-                      const SizedBox(height: 13),
-                      Text(
-                        memo.description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontFamily: FontFamily.montserratRegular,
-                          color: AppColors.textSecondary,
-                          fontSize: 10.5,
-                          height: 1.45,
-                        ),
                       ),
                       const SizedBox(height: 14),
                       Divider(
@@ -547,28 +825,60 @@ class _MemoCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: _PriceColumn(
-                              label: 'Cts',
+                              label: 'TotalCts',
                               value: memo.totalCarat.toStringAsFixed(3),
                             ),
                           ),
                           Expanded(
                             child: _PriceColumn(
-                              label: 'Amount',
-                              value: _money(memo.dollarPrice, memo.currencyName),
+                              label: 'Total Pcs',
+                              value: pcsValue,
                             ),
                           ),
                           Expanded(
                             child: _PriceColumn(
-                              label: 'Pending',
-                              value: _money(
-                                memo.pendingAmount != 0
-                                    ? memo.pendingAmount
-                                    : memo.total,
-                                memo.currencyName,
-                              ),
+                              label: 'Rate',
+                              value: _formatNumber(memo.ppc),
+                            ),
+                          ),
+                          Expanded(
+                            child: _PriceColumn(
+                              label: 'Final Amt',
+                              value: _money(finalAmt, memo.currencyName),
                               highlight: true,
                             ),
                           ),
+                          if (isDelivered) ...[
+                            Material(
+                              color: AppColors.primary.withValues(alpha: 0.09),
+                              shape: const CircleBorder(),
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: isDownloading ? null : onDownload,
+                                child: SizedBox(
+                                  width: 28,
+                                  height: 28,
+                                  child: Center(
+                                    child: isDownloading
+                                        ? const SizedBox(
+                                            width: 14,
+                                            height: 14,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: AppColors.primary,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.download_rounded,
+                                            color: AppColors.primary,
+                                            size: 16,
+                                          ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                          ],
                           Container(
                             width: 28,
                             height: 28,

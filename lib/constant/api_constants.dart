@@ -19,9 +19,15 @@ class ApiConstants {
   /// Available print templates for a form (Memo Issue, etc.).
   static const String getPrintListDetail = 'get-Print-List-detail';
 
-  /// Memo issue summary / list.
+  /// Memo issue summary / list (legacy).
   static const String getMemoIssueSummaryDetail = 'get-memo-issue-summary-detail';
 
-  /// Invoice summary / list.
+  /// Memo issue delivery list / detail.
+  static const String getMemoIssueDelivery = 'get-Memo-Issue-Delivery';
+
+  /// Invoice summary / list (legacy).
   static const String getInvoiceSummaryDetail = 'get-invoice-summary-detail';
+
+  /// Sale invoice delivery list / detail.
+  static const String getSaleInvoiceDelivery = 'get-Sale-Invoice-Delivery';
 }

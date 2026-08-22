@@ -324,9 +324,13 @@ class MemoPrintProvider extends ChangeNotifier {
     }
   }
 
-  /// Generate PDF via `get-Print-Url-Path` only (no save).
-  Future<bool> generatePdf({Rect? sharePositionOrigin}) async {
-    if (_selectedDiamondIds.isEmpty) {
+  /// Generate PDF via `get-Print-Url-Path`.
+  /// When [autoDownload] is false, only the remote URL is stored (manual download later).
+  Future<bool> generatePdf({
+    Rect? sharePositionOrigin,
+    bool autoDownload = true,
+  }) async {
+    if (memo.diamonds.isNotEmpty && _selectedDiamondIds.isEmpty) {
       _errorMessage = 'Select at least one diamond';
       notifyListeners();
       return false;
@@ -382,6 +386,11 @@ class MemoPrintProvider extends ChangeNotifier {
 
       debugPrint('Print PDF url → $pdfUrl');
       _lastPdfUrl = pdfUrl;
+      _lastSavedPath = null;
+
+      if (!autoDownload) {
+        return true;
+      }
 
       final directory = await getApplicationDocumentsDirectory();
       final safeMemoNo = memo.id.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');

@@ -363,10 +363,14 @@ class ApiService {
       final downloadDio = Dio(
         BaseOptions(
           connectTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(seconds: 60),
+          receiveTimeout: const Duration(seconds: 90),
           responseType: ResponseType.bytes,
           followRedirects: true,
-          validateStatus: (status) => status != null && status >= 200 && status < 400,
+          validateStatus: (status) =>
+              status != null && status >= 200 && status < 400,
+          headers: const {
+            'Accept': 'application/pdf,*/*',
+          },
         ),
       );
 
@@ -374,6 +378,14 @@ class ApiService {
       final bytes = response.data;
       if (bytes == null || bytes.isEmpty) {
         throw Exception('Downloaded PDF is empty');
+      }
+
+      // Basic PDF signature check — reject HTML/error pages saved as .pdf.
+      if (bytes.length >= 4) {
+        final header = String.fromCharCodes(bytes.take(5));
+        if (!header.startsWith('%PDF')) {
+          throw Exception('Server did not return a valid PDF file');
+        }
       }
 
       final file = File(savePath);

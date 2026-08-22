@@ -1,7 +1,5 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
-
 import '../constant/api_constants.dart';
 import '../models/login.dart';
 import '../models/memo.dart';
@@ -35,13 +33,24 @@ class MemoProvider extends ChangeNotifier {
   String? _memosError;
   List<Party> _parties = [];
   Party? _selectedParty;
+  String _selectedDeliveredStatus = 'PENDING';
   double _totalPcs = 0;
   double _totalRate = 0;
+  double _totalAmt = 0;
+  double _totalCts = 0;
   int _totalCount = 0;
+
+  static const List<String> deliveredStatusOptions = [
+    'ALL',
+    'PENDING',
+    'DELIVERED',
+  ];
 
   List<Memo> get memos => List.unmodifiable(_filteredMemos);
   double get totalPcs => _totalPcs;
   double get totalRate => _totalRate;
+  double get totalAmt => _totalAmt;
+  double get totalCts => _totalCts;
   int get totalCount => _totalCount;
   int get totalMemos => _totalCount > 0 ? _totalCount : _memos.length;
 
@@ -52,6 +61,7 @@ class MemoProvider extends ChangeNotifier {
   String? get memosError => _memosError;
   List<Party> get parties => List.unmodifiable(_parties);
   Party? get selectedParty => _selectedParty;
+  String get selectedDeliveredStatus => _selectedDeliveredStatus;
 
   Future<void> _bootstrap() async {
     await loadParties();
@@ -110,84 +120,37 @@ class MemoProvider extends ChangeNotifier {
     );
   }
 
-  Future<MemoIssueSummaryResponse> getMemoIssueSummary({
+  Future<MemoIssueSummaryResponse> getMemoIssueDelivery({
     required LoginUser loginUser,
     required String productId,
     String partyIds = '',
-    String memoNumbers = '',
+    String tranNo = '',
     int type = 1,
+    String deliveredStatus = 'PENDING',
   }) async {
-
     final requestData = {
       'login': loginUser.toJson(),
       'filters': {
-        'UserID': loginUser.userId,
-        'BranchID': loginUser.branchId,
-        'MemoNumbers': memoNumbers,
-        'PartyIDs': partyIds,
-        'BrokerIDs': '',
-        'StoneIDs': '',
-        'FromDate': type == 1 ? loginUser.fromYear : '',
-        'ToDate': type == 1 ? loginUser.toYear : '',
-        'MemoStatus': 'PENDING',
-        'EntryByIds': '',
-        'UpdateByIds': '',
-        'VoucherType': '',
-        'IsOverDue': false,
-        'CertificateStatus': 'ALL',
-        'ActionBy': '',
-        'CurrencyBy': '',
         'Type': type,
-        'SellerBy': '',
-        'Diamond_Type': '',
-        'Growth_Type': '',
-        'Department_ID': '',
-        'DeliverByIds': loginUser.userId.toString(),
-        'DeliveredStatus': 'ALL',
-        'ProductId': productId,
+        'Tran_No': tranNo,
+        'PartyIDs': partyIds,
+        'DeliveredStatus': deliveredStatus,
       },
       'Product_ID': productId,
     };
-    // REQUEST print
+
     debugPrint(
-      'Memo summary REQUEST → ${const JsonEncoder.withIndent('  ').convert(requestData)}',
+      'Memo delivery REQUEST → '
+      '${const JsonEncoder.withIndent('  ').convert(requestData)}',
     );
 
     final response = await apiService.postRequest(
-      ApiConstants.getMemoIssueSummaryDetail,
-      data: {
-        'login': loginUser.toJson(),
-        'filters': {
-          'UserID': loginUser.userId,
-          'BranchID': loginUser.branchId,
-          'MemoNumbers': memoNumbers,
-          'PartyIDs': partyIds,
-          'BrokerIDs': '',
-          'StoneIDs': '',
-          'FromDate': type == 1 ? loginUser.fromYear : '',
-          'ToDate': type == 1 ? loginUser.toYear : '',
-          'MemoStatus': 'PENDING',
-          'EntryByIds': '',
-          'UpdateByIds': '',
-          'VoucherType': '',
-          'IsOverDue': false,
-          'CertificateStatus': 'ALL',
-          'ActionBy': '',
-          'CurrencyBy': '',
-          'Type': type,
-          'SellerBy': '',
-          'Diamond_Type': '',
-          'Growth_Type': '',
-          'Department_ID': '',
-          'DeliverByIds': loginUser.userId.toString(),
-          'DeliveredStatus': 'ALL',
-          'ProductId': productId,
-        },
-        'Product_ID': productId,
-      },
+      ApiConstants.getMemoIssueDelivery,
+      data: requestData,
     );
 
-    print('response------${response.data}');
+    debugPrint('Memo delivery RESPONSE → ${response.data}');
+
     final raw = response.data;
     if (raw is Map<String, dynamic>) {
       return MemoIssueSummaryResponse.fromJson(raw);
@@ -223,76 +186,37 @@ class MemoProvider extends ChangeNotifier {
     }
 
     debugPrint(
-      'Memo detail filter → Type=2, MemoNumbers=$memoNumber, '
+      'Memo detail filter → Type=2, Tran_No=$memoNumber, '
       'Product_ID=$productId',
     );
 
-    final response = await apiService.postRequest(
-      ApiConstants.getMemoIssueSummaryDetail,
-      data: {
-        'login': loginUser.toJson(),
-        'filters': {
-          'UserID': loginUser.userId,
-          'BranchID': loginUser.branchId,
-          'MemoNumbers': memoNumber,
-          'PartyIDs': '',
-          'BrokerIDs': '',
-          'StoneIDs': '',
-          'FromDate': '',
-          'ToDate': '',
-          'MemoStatus': 'PENDING',
-          'EntryByIds': '',
-          'UpdateByIds': '',
-          'VoucherType': '',
-          'IsOverDue': false,
-          'CertificateStatus': 'ALL',
-          'ActionBy': '',
-          'CurrencyBy': '',
-          'Type': 2,
-          'SellerBy': '',
-          'Diamond_Type': '',
-          'Growth_Type': '',
-          'Department_ID': '',
-          'DeliverByIds': loginUser.userId.toString(),
-          'DeliveredStatus': 'ALL',
-          'ProductId': productId,
-        },
-        'Product_ID': productId,
-      },
+    final response = await getMemoIssueDelivery(
+      loginUser: loginUser,
+      productId: productId,
+      type: 2,
+      tranNo: memoNumber,
+      deliveredStatus: deliveredStatusForApi,
     );
 
-    final raw = response.data;
-    final map = raw is Map<String, dynamic>
-        ? raw
-        : (raw is Map ? Map<String, dynamic>.from(raw) : null);
-
-    if (map == null) {
-      throw StateError('Invalid response from server');
-    }
-
-    final error = map['Error']?.toString().trim() ?? '';
-    final isSuccess = _asApiSuccess(map['IsSuccess']);
-    if (!isSuccess || error.isNotEmpty) {
-      final message = map['Message']?.toString().trim() ?? '';
+    if (!response.isMemoListSuccess) {
       throw StateError(
-        error.isNotEmpty
-            ? error
-            : (message.isNotEmpty ? message : 'Unable to load diamond details'),
+        response.error.isNotEmpty
+            ? response.error
+            : (response.message.isNotEmpty
+                ? response.message
+                : 'Unable to load diamond details'),
       );
     }
 
-    final diamonds = parseMemoDiamondsFromResponse(map);
+      final diamonds = <Diamond>[];
+    for (final memo in response.rows) {
+      diamonds.addAll(memo.diamonds);
+    }
+
     debugPrint(
       'Memo diamonds loaded → memo=$memoNumber, count=${diamonds.length}',
     );
     return diamonds;
-  }
-
-  bool _asApiSuccess(dynamic value) {
-    if (value is bool) return value;
-    if (value is String) return value.toLowerCase() == 'true';
-    if (value is num) return value != 0;
-    return false;
   }
 
   Future<void> loadParties({String query = ''}) async {
@@ -360,6 +284,8 @@ class MemoProvider extends ChangeNotifier {
     _filteredMemos = [];
     _totalPcs = 0;
     _totalRate = 0;
+    _totalAmt = 0;
+    _totalCts = 0;
     _totalCount = 0;
   }
 
@@ -389,13 +315,17 @@ class MemoProvider extends ChangeNotifier {
 
       final partyIds = _selectedParty?.ledgerId.toString() ?? '';
       debugPrint(
-        'Memo filter → PartyIDs=$partyIds, '
+        'Memo delivery filter → Type=1, PartyIDs=$partyIds, '
+        'DeliveredStatus=$deliveredStatusForApi, '
         'party=${_selectedParty?.displayName ?? 'All'}',
       );
-      final response = await getMemoIssueSummary(
+      final response = await getMemoIssueDelivery(
         loginUser: loginUser,
         productId: productId,
         partyIds: partyIds,
+        type: 1,
+        tranNo: '',
+        deliveredStatus: deliveredStatusForApi,
       );
 
       if (!response.isMemoListSuccess) {
@@ -413,6 +343,8 @@ class MemoProvider extends ChangeNotifier {
       _memos = response.rows;
       _totalPcs = response.totalPcs;
       _totalRate = response.totalRate;
+      _totalAmt = response.totalAmt;
+      _totalCts = response.totalCts;
       _totalCount = response.totalCount > 0
           ? response.totalCount
           : response.rows.length;
@@ -421,8 +353,8 @@ class MemoProvider extends ChangeNotifier {
       debugPrint(
         'Memo list loaded → count=${_memos.length}, '
         'TotalCount=$_totalCount, TotalPcs=$_totalPcs, '
-        'TotalRate=$_totalRate, totalAmt=${response.totalAmt}, '
-        'totalCts=${response.totalCts}',
+        'TotalRate=$_totalRate, TotalAmt=$_totalAmt, '
+        'TotalCts=$_totalCts',
       );
       for (final memo in _memos) {
         debugPrint(
@@ -450,6 +382,19 @@ class MemoProvider extends ChangeNotifier {
     await loadMemos();
   }
 
+  Future<void> selectDeliveredStatus(String status) async {
+    final normalized = status.trim().toUpperCase();
+    if (!deliveredStatusOptions.contains(normalized)) return;
+    if (_selectedDeliveredStatus == normalized) return;
+    _selectedDeliveredStatus = normalized;
+    notifyListeners();
+    await loadMemos();
+  }
+
+  /// UI shows ALL / PENDING / DELIVERED; API gets blank for ALL.
+  String get deliveredStatusForApi =>
+      _selectedDeliveredStatus == 'ALL' ? '' : _selectedDeliveredStatus;
+
   void _filterMemos() {
     final query = searchController.text.trim().toLowerCase();
     _filteredMemos = query.isEmpty
@@ -459,6 +404,7 @@ class MemoProvider extends ChangeNotifier {
                 memo.id.toLowerCase().contains(query) ||
                 memo.description.toLowerCase().contains(query) ||
                 memo.customerName.toLowerCase().contains(query) ||
+                memo.entryBy.toLowerCase().contains(query) ||
                 memo.billType.toLowerCase().contains(query);
           }).toList();
     notifyListeners();

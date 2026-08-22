@@ -270,6 +270,11 @@ class _BranchDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = provider.isBranchesLoading;
+    final selected = provider.selectedBranch;
+    final hasSelected = selected != null &&
+        provider.branches.any((b) => b.ledgerId == selected.ledgerId);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -284,18 +289,63 @@ class _BranchDropdown extends StatelessWidget {
         const SizedBox(height: 8),
         DropdownButtonFormField<Branch>(
           key: ValueKey(
-            '${provider.branches.length}-${provider.selectedBranch?.ledgerId}',
+            '${provider.branches.length}-${selected?.ledgerId}',
           ),
-          initialValue: provider.selectedBranch,
+          initialValue: hasSelected ? selected : null,
           isExpanded: true,
-          icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: AppColors.primary,
+          dropdownColor: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          menuMaxHeight: 280,
+          icon: isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: Padding(
+                    padding: EdgeInsets.only(right: 4),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                )
+              : const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
+          style: TextStyle(
+            fontFamily: FontFamily.montserratMedium,
+            color: AppColors.textPrimary,
+            fontSize: 14,
           ),
+          hint: Text(
+            isLoading ? 'Loading branches...' : 'Select branch',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: FontFamily.montserratRegular,
+              color: AppColors.textSecondary.withValues(alpha: 0.65),
+              fontSize: 13,
+            ),
+          ),
+          selectedItemBuilder: (context) {
+            return provider.branches.map((branch) {
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  branch.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: FontFamily.montserratMedium,
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                  ),
+                ),
+              );
+            }).toList();
+          },
           decoration: InputDecoration(
-            hintText: provider.isBranchesLoading
-                ? 'Loading branches...'
-                : 'Select branch',
             errorText: provider.branchError ?? provider.branchesError,
             prefixIcon: const Icon(
               Icons.apartment_outlined,
@@ -303,11 +353,6 @@ class _BranchDropdown extends StatelessWidget {
             ),
             filled: true,
             fillColor: AppColors.background,
-            hintStyle: TextStyle(
-              fontFamily: FontFamily.montserratRegular,
-              color: AppColors.textSecondary.withValues(alpha: 0.65),
-              fontSize: 13,
-            ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 17,
@@ -331,24 +376,46 @@ class _BranchDropdown extends StatelessWidget {
               borderRadius: BorderRadius.circular(15),
               borderSide: const BorderSide(color: AppColors.error, width: 1.6),
             ),
+            disabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: BorderSide(
+                color: AppColors.secondary.withValues(alpha: 0.7),
+              ),
+            ),
           ),
-          items: provider.branches
-              .map(
-                (branch) => DropdownMenuItem<Branch>(
-                  value: branch,
-                  child: Text(
-                    branch.displayName,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: FontFamily.montserratMedium,
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
+          items: provider.branches.map((branch) {
+            final isSelected = selected?.ledgerId == branch.ledgerId;
+            return DropdownMenuItem<Branch>(
+              value: branch,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      branch.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: isSelected
+                            ? FontFamily.montserratSemiBold
+                            : FontFamily.montserratMedium,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.textPrimary,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
-                ),
-              )
-              .toList(),
-          onChanged: provider.isBranchesLoading
+                  if (isSelected)
+                    const Icon(
+                      Icons.check_rounded,
+                      size: 16,
+                      color: AppColors.primary,
+                    ),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: isLoading
               ? null
               : (branch) => provider.selectBranch(branch),
         ),

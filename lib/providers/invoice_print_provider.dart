@@ -32,7 +32,7 @@ class InvoicePrintProvider extends ChangeNotifier {
   }
 
   static const int defaultPrintId = 1;
-  static const String formName = 'Sales Invoice';
+  static const String formName = 'Sale Invoice';
 
   final Invoice invoice;
   final PdfService pdfService;
@@ -326,9 +326,13 @@ class InvoicePrintProvider extends ChangeNotifier {
     }
   }
 
-  /// Generate PDF via `get-Print-Url-Path` only (no save).
-  Future<bool> generatePdf({Rect? sharePositionOrigin}) async {
-    if (_selectedItemIds.isEmpty) {
+  /// Generate PDF via `get-Print-Url-Path`.
+  /// When [autoDownload] is false, only the remote URL is stored (manual download later).
+  Future<bool> generatePdf({
+    Rect? sharePositionOrigin,
+    bool autoDownload = true,
+  }) async {
+    if (invoice.items.isNotEmpty && _selectedItemIds.isEmpty) {
       _errorMessage = 'Select at least one diamond';
       notifyListeners();
       return false;
@@ -385,6 +389,11 @@ class InvoicePrintProvider extends ChangeNotifier {
 
       debugPrint('Invoice Print PDF url → $pdfUrl');
       _lastPdfUrl = pdfUrl;
+      _lastSavedPath = null;
+
+      if (!autoDownload) {
+        return true;
+      }
 
       final directory = await getApplicationDocumentsDirectory();
       final safeInvoiceNo = invoice.id.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');

@@ -50,7 +50,7 @@ class _HomeContent extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _FeatureCard(
-                        title: 'Memo',
+                        title: 'Memo Delivery',
                         description: 'Create, review and share diamond memos',
                         icon: Icons.description_outlined,
                         color: AppColors.primary,
