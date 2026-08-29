@@ -216,6 +216,7 @@ LoginUser? _readSavedLoginUser() {
 
 Future<void> _clearSession() async {
   await GetStorageData.removeData(GetStorageData.loginData);
+  await GetStorageData.removeData(GetStorageData.formPermissions);
   await GetStorageData.removeData(GetStorageData.token);
   await GetStorageData.removeData(GetStorageData.userId);
   await GetStorageData.removeData(GetStorageData.currencyCode);

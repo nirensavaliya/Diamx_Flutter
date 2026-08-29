@@ -211,7 +211,28 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
         builder: (context, provider, child) {
           return Stack(
             children: [
-              CustomScrollView(
+              NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  if (notification is! ScrollUpdateNotification &&
+                      notification is! OverscrollNotification) {
+                    return false;
+                  }
+                  if (!provider.hasMore ||
+                      provider.isLoadingMore ||
+                      provider.isInvoicesLoading) {
+                    return false;
+                  }
+                  final metrics = notification.metrics;
+                  if (metrics.maxScrollExtent <= 0) return false;
+                  if (metrics.pixels >= metrics.maxScrollExtent - 320) {
+                    provider.loadMoreInvoices();
+                  }
+                  return false;
+                },
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
                 slivers: [
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
@@ -329,7 +350,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                       ),
                     ),
                   ),
-                  if (provider.isInvoicesLoading)
+                  if (provider.isInvoicesLoading && !provider.isLoadingMore)
                     const AppListCardShimmer()
                   else if (provider.invoices.isEmpty)
                     SliverFillRemaining(
@@ -346,7 +367,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                         ),
                       ),
                     )
-                  else
+                  else ...[
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                       sliver: SliverList.separated(
@@ -368,11 +389,28 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                         },
                       ),
                     ),
+                    if (provider.isLoadingMore)
+                      const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(16, 0, 16, 28),
+                          child: Center(
+                            child: SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(strokeWidth: 2.4),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ],
+              ),
               ),
               if (provider.isPartiesLoading)
                 const FullScreenLoader(message: 'Loading parties...'),
-              if (provider.isInvoicesLoading && !provider.isPartiesLoading)
+              if (provider.isInvoicesLoading &&
+                  !provider.isLoadingMore &&
+                  !provider.isPartiesLoading)
                 const FullScreenLoader(message: 'Loading invoices...'),
               if (_downloadingInvoiceId != null)
                 const FullScreenLoader(message: 'Downloading PDF...'),

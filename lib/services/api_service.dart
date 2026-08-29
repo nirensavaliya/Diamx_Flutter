@@ -126,6 +126,7 @@ class ApiService {
 
     try {
       await GetStorageData.removeData(GetStorageData.loginData);
+      await GetStorageData.removeData(GetStorageData.formPermissions);
       await GetStorageData.removeData(GetStorageData.token);
       await GetStorageData.removeData(GetStorageData.userId);
       await GetStorageData.removeData(GetStorageData.currencyCode);

@@ -10,4 +10,11 @@ class AppRoutes {
   static const invoiceList = '/invoice-list';
   static const invoiceDetail = '/invoice-detail';
   static const invoicePrint = '/invoice-print';
+  static const memoOfficeDelivery = '/memo-office-delivery';
+  static const memoOfficeDeliveryDetail = '/memo-office-delivery-detail';
+  static const memoOfficeDeliveryPrint = '/memo-office-delivery-print';
+  static const invoiceOfficeDelivery = '/invoice-office-delivery';
+  static const invoiceOfficeDeliveryDetail = '/invoice-office-delivery-detail';
+  static const invoiceOfficeDeliveryPrint = '/invoice-office-delivery-print';
+
 }

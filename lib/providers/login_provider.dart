@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../constant/api_constants.dart';
 import '../models/branch.dart';
 import '../models/login.dart';
+import '../providers/permission_provider.dart';
 import '../services/api_service.dart';
 import '../services/client_code_storage.dart';
 import '../services/get_stroage_data.dart';
@@ -235,6 +236,10 @@ class LoginProvider extends ChangeNotifier {
       }
 
       await _saveLoginSession(response.result!);
+      await _loadFormPermissions(
+        loginUser: response.result!.login,
+        productId: productId,
+      );
       _loginResult = response.result;
       _isLoading = false;
       notifyListeners();
@@ -265,6 +270,24 @@ class LoginProvider extends ChangeNotifier {
       GetStorageData.currencyCode,
       user.currencyName,
     );
+  }
+
+  Future<void> _loadFormPermissions({
+    required LoginUser loginUser,
+    required String productId,
+  }) async {
+    try {
+      final permissionProvider = PermissionProvider(bootstrap: false);
+      final response = await permissionProvider.fetchUserPermissions(
+        loginUser: loginUser,
+        productId: productId,
+      );
+      if (response.isPermissionSuccess) {
+        await PermissionProvider.savePermissions(response.permissions);
+      }
+    } catch (_) {
+      // Home will retry; don't block login.
+    }
   }
 
   @override

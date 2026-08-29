@@ -30,4 +30,6 @@ class ApiConstants {
 
   /// Sale invoice delivery list / detail.
   static const String getSaleInvoiceDelivery = 'get-Sale-Invoice-Delivery';
+  static const String getUserPermission = 'get-User-Form-Wise-Permission';
+
 }

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../models/login.dart';
 import '../../models/memo.dart';
 import '../../providers/memo_provider.dart';
+import '../../providers/permission_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../services/get_stroage_data.dart';
 import '../../utills/app_colors.dart';
@@ -18,8 +19,11 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => MemoProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => MemoProvider()),
+        ChangeNotifierProvider(create: (_) => PermissionProvider()),
+      ],
       child: const _HomeContent(),
     );
   }
@@ -46,37 +50,104 @@ class _HomeContent extends StatelessWidget {
                   subtitle: 'Everything you need in one place',
                 ),
                 const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _FeatureCard(
-                        title: 'Memo Delivery',
-                        description: 'Create, review and share diamond memos',
-                        icon: Icons.description_outlined,
-                        color: AppColors.primary,
-                        onTap: () =>
-                            Navigator.pushNamed(context, AppRoutes.memo),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _FeatureCard(
-                        title: 'Invoice Delivery',
-                        description: 'Track and manage all your invoices',
-                        icon: Icons.receipt_long_outlined,
-                        color: AppColors.accentDark,
-                        onTap: () =>
-                            Navigator.pushNamed(context, AppRoutes.invoiceList),
-                      ),
-                    ),
-                  ],
-                ),
+                const _QuickAccessCards(),
                 const SizedBox(height: 28),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _QuickAccessCards extends StatelessWidget {
+  const _QuickAccessCards();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<PermissionProvider>(
+      builder: (context, permissions, _) {
+        final cards = <Widget>[
+          if (permissions.canViewMemoDelivery)
+            _FeatureCard(
+              title: 'Memo Delivery',
+              description: 'Create, review and share diamond memos',
+              icon: Icons.description_outlined,
+              color: AppColors.primary,
+              onTap: () => Navigator.pushNamed(context, AppRoutes.memo),
+            ),
+          if (permissions.canViewSaleDelivery)
+            _FeatureCard(
+              title: 'Invoice Delivery',
+              description: 'Track and manage all your invoices',
+              icon: Icons.receipt_long_outlined,
+              color: AppColors.accentDark,
+              onTap: () =>
+                  Navigator.pushNamed(context, AppRoutes.invoiceList),
+            ),
+          if (permissions.canViewMemoOfficeDelivery)
+            _FeatureCard(
+              title: 'Memo Office Delivery',
+              description: 'Handle office memo deliveries',
+              icon: Icons.business_center_outlined,
+              color: AppColors.primaryLight,
+              onTap: () => Navigator.pushNamed(
+                context,
+                AppRoutes.memoOfficeDelivery,
+              ),
+            ),
+          if (permissions.canViewSaleOfficeDelivery)
+            _FeatureCard(
+              title: 'Invoice Office Delivery',
+              description: 'Handle office invoice deliveries',
+              icon: Icons.apartment_outlined,
+              color: AppColors.accent,
+              onTap: () => Navigator.pushNamed(
+                context,
+                AppRoutes.invoiceOfficeDelivery,
+              ),
+            ),
+        ];
+
+        if (cards.isEmpty) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.12),
+              ),
+            ),
+            child: Text(
+              'No delivery modules are available for your account.',
+              style: TextStyle(
+                fontFamily: FontFamily.montserratRegular,
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                height: 1.45,
+              ),
+            ),
+          );
+        }
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            const spacing = 12.0;
+            final cardWidth = (constraints.maxWidth - spacing) / 2;
+            return Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: [
+                for (final card in cards)
+                  SizedBox(width: cardWidth, child: card),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

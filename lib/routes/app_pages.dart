@@ -1,3 +1,9 @@
+import 'package:diamax_flutter/screens/invoice-office-delivery/invoice_office_delivery_detail_screen.dart';
+import 'package:diamax_flutter/screens/invoice-office-delivery/invoice_office_delivery_print_screen.dart';
+import 'package:diamax_flutter/screens/invoice-office-delivery/invoice_office_delivery_screen.dart';
+import 'package:diamax_flutter/screens/memo-office-delivery/memo_office_delivery_detail_screen.dart';
+import 'package:diamax_flutter/screens/memo-office-delivery/memo_office_delivery_print_screen.dart';
+import 'package:diamax_flutter/screens/memo-office-delivery/memo_office_delivery_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -5,9 +11,13 @@ import '../models/invoice.dart';
 import '../models/memo.dart';
 import '../providers/bottom_navigation_provider.dart';
 import '../providers/company_code_provider.dart';
+import '../providers/invoice_office_delivery_print_provider.dart';
+import '../providers/invoice_office_delivery_provider.dart';
 import '../providers/invoice_print_provider.dart';
 import '../providers/invoice_provider.dart';
 import '../providers/login_provider.dart';
+import '../providers/memo_office_delivery_print_provider.dart';
+import '../providers/memo_office_delivery_provider.dart';
 import '../providers/memo_print_provider.dart';
 import '../providers/memo_provider.dart';
 import '../screens/company_code/company_code_screen.dart';
@@ -71,6 +81,42 @@ class AppPages {
       return ChangeNotifierProvider(
         create: (_) => InvoicePrintProvider(invoice),
         child: const InvoicePrintScreen(),
+      );
+    },
+    AppRoutes.memoOfficeDelivery: (_) => ChangeNotifierProvider(
+      create: (_) => MemoOfficeDeliveryProvider(),
+      child: const MemoOfficeDeliveryScreen(),
+    ),
+    AppRoutes.memoOfficeDeliveryDetail: (context) {
+      final memo = ModalRoute.of(context)!.settings.arguments! as Memo;
+      return ChangeNotifierProvider(
+        create: (_) => MemoOfficeDeliveryProvider(bootstrap: false),
+        child: MemoOfficeDeliveryDetailScreen(memo: memo),
+      );
+    },
+    AppRoutes.memoOfficeDeliveryPrint: (context) {
+      final memo = ModalRoute.of(context)!.settings.arguments! as Memo;
+      return ChangeNotifierProvider(
+        create: (_) => MemoOfficeDeliveryPrintProvider(memo),
+        child: const MemoOfficeDeliveryPrintScreen(),
+      );
+    },
+    AppRoutes.invoiceOfficeDelivery: (_) => ChangeNotifierProvider(
+      create: (_) => InvoiceOfficeDeliveryProvider(),
+      child: const InvoiceOfficeDeliveryScreen(),
+    ),
+    AppRoutes.invoiceOfficeDeliveryDetail: (context) {
+      final invoice = ModalRoute.of(context)!.settings.arguments! as Invoice;
+      return ChangeNotifierProvider(
+        create: (_) => InvoiceOfficeDeliveryProvider(bootstrap: false),
+        child: InvoiceOfficeDeliveryDetailScreen(invoice: invoice),
+      );
+    },
+    AppRoutes.invoiceOfficeDeliveryPrint: (context) {
+      final invoice = ModalRoute.of(context)!.settings.arguments! as Invoice;
+      return ChangeNotifierProvider(
+        create: (_) => InvoiceOfficeDeliveryPrintProvider(invoice),
+        child: const InvoiceOfficeDeliveryPrintScreen(),
       );
     },
   };

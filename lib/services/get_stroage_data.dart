@@ -5,6 +5,7 @@ import 'package:get_storage/get_storage.dart';
 /// <<< To store data in phone storage --------- >>>
 class GetStorageData {
   static String loginData = "LoginData";
+  static String formPermissions = "FormPermissions";
   static String userId = "userId";
   static String token = "token";
   static String isOtpVerified = "isOtpVerified";
