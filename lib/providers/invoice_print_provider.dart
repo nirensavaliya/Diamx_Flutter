@@ -32,7 +32,7 @@ class InvoicePrintProvider extends ChangeNotifier {
   }
 
   static const int defaultPrintId = 1;
-  static const String formName = 'Sale Invoice';
+  static const String formName = 'Sales Invoice';
 
   final Invoice invoice;
   final PdfService pdfService;
@@ -137,16 +137,37 @@ class InvoicePrintProvider extends ChangeNotifier {
         loginPayload['Product_ID'] = productId;
       }
 
+      final requestBody = {
+        'login': loginPayload,
+        'Form_Name': formName,
+        'Product_ID': productId,
+      };
+      print('========== get-Print-List-detail REQUEST ==========');
+      print(
+        const JsonEncoder.withIndent('  ').convert(
+          Map<String, dynamic>.from(requestBody)..remove('login'),
+        ),
+      );
+      print('===================================================');
+
       final response = await apiService.postRequest(
         ApiConstants.getPrintListDetail,
-        data: {
-          'login': loginPayload,
-          'Form_Name': formName,
-          'Product_ID': productId,
-        },
+        data: requestBody,
       );
 
       final raw = response.data;
+      print('========== get-Print-List-detail RESPONSE ==========');
+      try {
+        if (raw is Map || raw is List) {
+          print(const JsonEncoder.withIndent('  ').convert(raw));
+        } else {
+          print(raw?.toString() ?? 'null');
+        }
+      } catch (_) {
+        print(raw?.toString() ?? 'null');
+      }
+      print('====================================================');
+
       final map = raw is Map<String, dynamic>
           ? raw
           : (raw is Map ? Map<String, dynamic>.from(raw) : null);
@@ -427,21 +448,42 @@ class InvoicePrintProvider extends ChangeNotifier {
     required String productId,
     required int printId,
   }) async {
+    final requestBody = {
+      'login': loginUser.toJson(),
+      'Obj': {
+        'FormType': formName,
+        'Tran_Id': invoice.invoiceId.toString(),
+        'Transaction_No': invoice.id,
+        'PrintID': printId,
+      },
+      'Product_ID': productId,
+    };
+    print('========== get-Print-Url-Path REQUEST ==========');
+    print(
+      const JsonEncoder.withIndent('  ').convert(
+        Map<String, dynamic>.from(requestBody)..remove('login'),
+      ),
+    );
+    print('================================================');
+
     final response = await apiService.postRequest(
       ApiConstants.getPrintUrlPath,
-      data: {
-        'login': loginUser.toJson(),
-        'Obj': {
-          'FormType': formName,
-          'Tran_Id': invoice.invoiceId.toString(),
-          'Transaction_No': invoice.id,
-          'PrintID': printId,
-        },
-        'Product_ID': productId,
-      },
+      data: requestBody,
     );
 
     final raw = response.data;
+    print('========== get-Print-Url-Path RESPONSE ==========');
+    try {
+      if (raw is Map || raw is List) {
+        print(const JsonEncoder.withIndent('  ').convert(raw));
+      } else {
+        print(raw?.toString() ?? 'null');
+      }
+    } catch (_) {
+      print(raw?.toString() ?? 'null');
+    }
+    print('=================================================');
+
     if (raw is Map<String, dynamic>) return raw;
     if (raw is Map) return Map<String, dynamic>.from(raw);
     return null;

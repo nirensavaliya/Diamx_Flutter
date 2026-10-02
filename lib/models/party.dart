@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class PartyListResponse {
   const PartyListResponse({
     required this.message,
@@ -19,18 +21,36 @@ class PartyListResponse {
   bool get isPartyListSuccess => isSuccess && !hasError;
 
   factory PartyListResponse.fromJson(Map<String, dynamic> json) {
-    final rows = <Party>[];
     final rawResult = json['Result'];
+    final message = json['Message']?.toString() ?? '';
+    var error = json['Error']?.toString() ?? '';
 
-    if (rawResult is Map<String, dynamic>) {
-      rows.addAll(_parseRows(rawResult['rows']));
-    } else if (rawResult is Map) {
-      rows.addAll(_parseRows(rawResult['rows']));
+    // Backend sometimes returns Dapper/exception text inside Result with
+    // IsSuccess=true and Error="". Treat that as a failed party load.
+    if (rawResult is String) {
+      final text = rawResult.trim();
+      if (text.isNotEmpty &&
+          (text.contains('Exception') ||
+              text.contains('at Dapper') ||
+              text.contains('at Repository') ||
+              text.contains('at WEB_'))) {
+        error = error.isNotEmpty ? error : text;
+        return PartyListResponse(
+          message: message,
+          error: error,
+          rows: const [],
+          isSessionExpire: _asBool(json['IsSessionExpire']),
+          isSuccess: false,
+          statusCode: json['StatusCode']?.toString() ?? '',
+        );
+      }
     }
 
+    final rows = _extractPartyMaps(rawResult).map(Party.fromJson).toList();
+
     return PartyListResponse(
-      message: json['Message']?.toString() ?? '',
-      error: json['Error']?.toString() ?? '',
+      message: message,
+      error: error,
       rows: rows,
       isSessionExpire: _asBool(json['IsSessionExpire']),
       isSuccess: _asBool(json['IsSuccess']),
@@ -38,12 +58,114 @@ class PartyListResponse {
     );
   }
 
-  static List<Party> _parseRows(dynamic rawRows) {
-    if (rawRows is! List) return [];
-    return rawRows
-        .whereType<Map>()
-        .map((e) => Party.fromJson(Map<String, dynamic>.from(e)))
-        .toList();
+  /// Supports:
+  /// - Result: [ {...}, ... ]
+  /// - Result: { rows|Rows|Data|data|Table|PartyList: [ ... ] }
+  /// - Result: "{...}" / "[{...}]" (JSON string)
+  static List<Map<String, dynamic>> _extractPartyMaps(dynamic rawResult) {
+    dynamic value = rawResult;
+
+    if (value is String && value.trim().isNotEmpty) {
+      try {
+        value = jsonDecode(value);
+      } catch (_) {
+        return const [];
+      }
+    }
+
+    if (value is List) {
+      return _mapsFromList(value);
+    }
+
+    if (value is Map) {
+      final map = Map<String, dynamic>.from(value);
+      const listKeys = [
+        'rows',
+        'Rows',
+        'Data',
+        'data',
+        'Table',
+        'table',
+        'PartyList',
+        'partyList',
+        'Parties',
+        'parties',
+        'List',
+        'list',
+      ];
+      for (final key in listKeys) {
+        final nested = map[key];
+        if (nested is List) {
+          return _mapsFromList(nested);
+        }
+      }
+
+      // Some APIs nest once more: Result.Data.rows
+      for (final key in listKeys) {
+        final nested = map[key];
+        if (nested is Map) {
+          final inner = Map<String, dynamic>.from(nested);
+          for (final innerKey in listKeys) {
+            final innerList = inner[innerKey];
+            if (innerList is List) {
+              return _mapsFromList(innerList);
+            }
+          }
+        }
+      }
+
+      // Single party object
+      if (_looksLikeParty(map)) {
+        return [map];
+      }
+
+      // Fallback: first list-valued entry in the map
+      for (final entry in map.entries) {
+        if (entry.value is List) {
+          final parsed = _mapsFromList(entry.value as List);
+          if (parsed.isNotEmpty) return parsed;
+        }
+      }
+    }
+
+    return const [];
+  }
+
+  static List<Map<String, dynamic>> _mapsFromList(List<dynamic> raw) {
+    final rows = <Map<String, dynamic>>[];
+    for (final item in raw) {
+      if (item is Map<String, dynamic>) {
+        rows.add(item);
+      } else if (item is Map) {
+        rows.add(Map<String, dynamic>.from(item));
+      }
+    }
+    return rows;
+  }
+
+  static bool _looksLikeParty(Map<String, dynamic> map) {
+    const idKeys = [
+      'Ledger_Id',
+      'LedgerId',
+      'Ledger_ID',
+      'Party_Id',
+      'PartyId',
+      'Party_ID',
+      'ID',
+      'Id',
+    ];
+    const nameKeys = [
+      'Ledger_Name',
+      'LedgerName',
+      'Party_Name',
+      'PartyName',
+      'Name',
+      'Full_Name',
+      'Short_Name',
+    ];
+    final hasId = idKeys.any(map.containsKey);
+    final hasName = nameKeys.any(map.containsKey);
+    return hasId || hasName;
   }
 }
 
@@ -103,31 +225,107 @@ class Party {
 
   factory Party.fromJson(Map<String, dynamic> json) {
     return Party(
-      ledgerId: _asInt(json['Ledger_Id']),
-      ledgerName: json['Ledger_Name']?.toString() ?? '',
-      shortName: json['Short_Name']?.toString() ?? '',
-      groupName: json['Group_Name']?.toString() ?? '',
-      currencyId: _asInt(json['Currency_Id']),
-      currencyName: json['Currency_Name']?.toString() ?? '',
-      convertBy: _asDouble(json['Convert_By']),
-      mailAddress: _asNullableString(json['MailAddress']),
-      mailCountryId: _asInt(json['Mail_Country_Id']),
-      mailStateId: _asInt(json['Mail_State_Id']),
-      mailCityId: _asInt(json['Mail_City_Id']),
-      shipAddress: _asNullableString(json['ShipAddress']),
-      shipCountryId: _asInt(json['Ship_Country_Id']),
-      shipStateId: _asInt(json['Ship_State_Id']),
-      shipCityId: _asInt(json['Ship_City_Id']),
-      countryName: _asNullableString(json['Country_Name']),
-      location: _asNullableString(json['Location']),
-      shippingLocation: _asNullableString(json['ShippingLocation']),
-      isBillByBill: _asBool(json['Is_Bill_By_Bill']),
-      discount: _asDouble(json['Discount']),
-      billType: _asNullableString(json['Bill_Type']),
-      branchId: _asInt(json['BranchId']),
-      groupId: _asInt(json['Group_Id']),
+      ledgerId: _asInt(
+        _pick(json, const [
+          'Ledger_Id',
+          'LedgerId',
+          'Ledger_ID',
+          'Party_Id',
+          'PartyId',
+          'Party_ID',
+          'ID',
+          'Id',
+        ]),
+      ),
+      ledgerName: _asString(
+        _pick(json, const [
+          'Ledger_Name',
+          'LedgerName',
+          'Party_Name',
+          'PartyName',
+          'Name',
+          'Full_Name',
+          'FullName',
+        ]),
+      ),
+      shortName: _asString(
+        _pick(json, const [
+          'Short_Name',
+          'ShortName',
+          'Party_Name',
+          'PartyName',
+          'Name',
+        ]),
+      ),
+      groupName: _asString(
+        _pick(json, const ['Group_Name', 'GroupName', 'Group']),
+      ),
+      currencyId: _asInt(
+        _pick(json, const ['Currency_Id', 'CurrencyId', 'Currency_ID']),
+      ),
+      currencyName: _asString(
+        _pick(json, const ['Currency_Name', 'CurrencyName', 'Currency']),
+      ),
+      convertBy: _asDouble(
+        _pick(json, const ['Convert_By', 'ConvertBy']),
+      ),
+      mailAddress: _asNullableString(
+        _pick(json, const ['MailAddress', 'Mail_Address', 'Address']),
+      ),
+      mailCountryId: _asInt(
+        _pick(json, const ['Mail_Country_Id', 'MailCountryId']),
+      ),
+      mailStateId: _asInt(
+        _pick(json, const ['Mail_State_Id', 'MailStateId']),
+      ),
+      mailCityId: _asInt(
+        _pick(json, const ['Mail_City_Id', 'MailCityId']),
+      ),
+      shipAddress: _asNullableString(
+        _pick(json, const ['ShipAddress', 'Ship_Address']),
+      ),
+      shipCountryId: _asInt(
+        _pick(json, const ['Ship_Country_Id', 'ShipCountryId']),
+      ),
+      shipStateId: _asInt(
+        _pick(json, const ['Ship_State_Id', 'ShipStateId']),
+      ),
+      shipCityId: _asInt(
+        _pick(json, const ['Ship_City_Id', 'ShipCityId']),
+      ),
+      countryName: _asNullableString(
+        _pick(json, const ['Country_Name', 'CountryName', 'Country']),
+      ),
+      location: _asNullableString(
+        _pick(json, const ['Location', 'Loaction']),
+      ),
+      shippingLocation: _asNullableString(
+        _pick(json, const ['ShippingLocation', 'Shipping_Location']),
+      ),
+      isBillByBill: _asBool(
+        _pick(json, const ['Is_Bill_By_Bill', 'IsBillByBill']),
+      ),
+      discount: _asDouble(_pick(json, const ['Discount'])),
+      billType: _asNullableString(
+        _pick(json, const ['Bill_Type', 'BillType']),
+      ),
+      branchId: _asInt(
+        _pick(json, const ['BranchId', 'Branch_Id', 'Branch_ID']),
+      ),
+      groupId: _asInt(
+        _pick(json, const ['Group_Id', 'GroupId', 'Group_ID']),
+      ),
     );
   }
+}
+
+dynamic _pick(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    if (json.containsKey(key) && json[key] != null) {
+      return json[key];
+    }
+  }
+  return null;
 }
 
 int _asInt(dynamic value) {
@@ -149,9 +347,14 @@ bool _asBool(dynamic value) {
   return text == 'true' || text == '1';
 }
 
-String? _asNullableString(dynamic value) {
-  if (value == null) return null;
+String _asString(dynamic value) {
+  if (value == null) return '';
   final text = value.toString();
-  if (text.isEmpty || text.toLowerCase() == 'null') return null;
+  if (text.toLowerCase() == 'null') return '';
   return text;
+}
+
+String? _asNullableString(dynamic value) {
+  final text = _asString(value);
+  return text.isEmpty ? null : text;
 }

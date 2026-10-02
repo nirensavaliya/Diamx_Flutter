@@ -7,13 +7,16 @@ import '../models/party.dart';
 import '../services/api_service.dart';
 import '../services/client_code_storage.dart';
 import '../services/get_stroage_data.dart';
+import '../utills/print_full_json.dart';
 
 class MemoProvider extends ChangeNotifier {
   MemoProvider({
     this.clientCodeStorage = const ClientCodeStorage(),
     ApiService? apiService,
     bool bootstrap = true,
-  }) : apiService = apiService ?? ApiService.shared() {
+    String initialDeliveredStatus = 'PENDING',
+  }) : apiService = apiService ?? ApiService.shared(),
+       _selectedDeliveredStatus = _normalizeDeliveredStatus(initialDeliveredStatus) {
     searchController.addListener(_filterMemos);
     if (bootstrap) {
       _bootstrap();
@@ -30,21 +33,24 @@ class MemoProvider extends ChangeNotifier {
   bool _isPartiesLoading = false;
   bool _isMemosLoading = false;
   bool _isLoadingMore = false;
+  bool _isSilentRefreshing = false;
   String? _partiesError;
   String? _memosError;
   List<Party> _parties = [];
   Party? _selectedParty;
-  String _selectedDeliveredStatus = 'PENDING';
+  String _selectedDeliveredStatus;
   double _totalPcs = 0;
   double _totalRate = 0;
   double _totalAmt = 0;
   double _totalCts = 0;
   int _totalCount = 0;
-  int _pageNum = 1;
+  int _pageNum = 0;
   bool _hasMore = true;
 
   static const int pageSize = 10;
   static const String listFormType = '';
+  /// Party list form-wise API (`get-PartyList-Form-Wise`).
+  static const String partyFormType = 'Memo Issue';
 
   static const List<String> deliveredStatusOptions = [
     'ALL',
@@ -129,6 +135,51 @@ class MemoProvider extends ChangeNotifier {
     );
   }
 
+  /// Party picker — form-wise list (`get-PartyList-Form-Wise`).
+  Future<PartyListResponse> getPartyListFormWise({
+    required LoginUser loginUser,
+    required String productId,
+    String formType = partyFormType,
+  }) async {
+    final requestBody = {
+      'login': loginUser.toJson(),
+      'FormType': formType,
+      'Product_ID': productId,
+    };
+
+    print('========== get-PartyList-Form-Wise REQUEST ==========');
+    print(
+      const JsonEncoder.withIndent('  ').convert(
+        Map<String, dynamic>.from(requestBody)..remove('login'),
+      ),
+    );
+    print('=====================================================');
+
+    final response = await apiService.postRequest(
+      ApiConstants.getPartyListFormWise,
+      data: requestBody,
+    );
+
+    final raw = response.data;
+    printFullJson('get-PartyList-Form-Wise RESPONSE', raw);
+
+    if (raw is Map<String, dynamic>) {
+      return PartyListResponse.fromJson(raw);
+    }
+    if (raw is Map) {
+      return PartyListResponse.fromJson(Map<String, dynamic>.from(raw));
+    }
+
+    return const PartyListResponse(
+      message: 'Invalid response from server',
+      error: 'Invalid response from server',
+      rows: [],
+      isSessionExpire: false,
+      isSuccess: false,
+      statusCode: '',
+    );
+  }
+
   Future<MemoIssueSummaryResponse> getMemoIssueDelivery({
     required LoginUser loginUser,
     required String productId,
@@ -147,11 +198,10 @@ class MemoProvider extends ChangeNotifier {
       'DeliveredStatus': deliveredStatus,
     };
 
-    // Pagination only for list (Type=1), not detail (Type=2).
     if (type == 1) {
       filters['FormType'] = formType;
       filters['PageSize'] = pageSize ?? MemoProvider.pageSize;
-      filters['PageNum'] = pageNum ?? 1;
+      filters['PageNum'] = pageNum ?? 0;
     }
 
     final requestData = {
@@ -160,11 +210,21 @@ class MemoProvider extends ChangeNotifier {
       'Product_ID': productId,
     };
 
-    debugPrint(
-      'Memo delivery REQUEST → Type=$type, PageNum=${filters['PageNum']}, '
-      'PageSize=${filters['PageSize']}, PartyIDs=$partyIds, '
-      'DeliveredStatus=$deliveredStatus',
-    );
+    final logVerbose = type != 1 || (pageNum ?? 0) == 0;
+    if (logVerbose) {
+      print('========== get-Memo-Issue-Delivery REQUEST ==========');
+      print(
+        const JsonEncoder.withIndent('  ').convert(
+          Map<String, dynamic>.from(requestData)..remove('login'),
+        ),
+      );
+      print('====================================================');
+    } else {
+      debugPrint(
+        'get-Memo-Issue-Delivery page=${pageNum ?? 0} '
+        'size=${pageSize ?? MemoProvider.pageSize}',
+      );
+    }
 
     final response = await apiService.postRequest(
       ApiConstants.getMemoIssueDelivery,
@@ -172,6 +232,10 @@ class MemoProvider extends ChangeNotifier {
     );
 
     final raw = response.data;
+    if (logVerbose) {
+      printFullJson('get-Memo-Issue-Delivery RESPONSE', raw);
+    }
+
     if (raw is Map<String, dynamic>) {
       return MemoIssueSummaryResponse.fromJson(raw);
     }
@@ -261,10 +325,10 @@ class MemoProvider extends ChangeNotifier {
         return;
       }
 
-      final response = await getPartyList(
+      final response = await getPartyListFormWise(
         loginUser: loginUser,
         productId: productId,
-        query: query,
+        formType: partyFormType,
       );
 
       if (!response.isPartyListSuccess) {
@@ -283,10 +347,15 @@ class MemoProvider extends ChangeNotifier {
           .where((party) => party.displayName.isNotEmpty)
           .toList();
 
+      print(
+        'Party list parsed → rawRows=${response.rows.length}, '
+        'withName=${_parties.length}',
+      );
+
       if (_parties.isEmpty) {
-        _partiesError = response.message.isNotEmpty
-            ? response.message
-            : 'No parties found';
+        _partiesError = 'No parties found';
+      } else {
+        _partiesError = null;
       }
 
       _isPartiesLoading = false;
@@ -307,21 +376,31 @@ class MemoProvider extends ChangeNotifier {
     _totalAmt = 0;
     _totalCts = 0;
     _totalCount = 0;
-    _pageNum = 1;
+    _pageNum = 0;
     _hasMore = true;
   }
 
-  Future<void> loadMemos({bool reset = true}) async {
+  Future<void> loadMemos({bool reset = true, bool silent = false}) async {
     if (reset) {
-      if (_isMemosLoading) return;
-      _pageNum = 1;
+      if (_isMemosLoading || _isSilentRefreshing) return;
+      _pageNum = 0;
       _hasMore = true;
-      _isMemosLoading = true;
       _isLoadingMore = false;
       _memosError = null;
-      notifyListeners();
+      if (silent) {
+        _isSilentRefreshing = true;
+      } else {
+        _isMemosLoading = true;
+        notifyListeners();
+      }
     } else {
-      if (!_hasMore || _isMemosLoading || _isLoadingMore) return;
+      if (!_hasMore ||
+          _isMemosLoading ||
+          _isLoadingMore ||
+          _isSilentRefreshing) {
+        return;
+      }
+      // Show bottom pagination loader (notify after flag so UI updates).
       _isLoadingMore = true;
       _memosError = null;
       notifyListeners();
@@ -331,9 +410,10 @@ class MemoProvider extends ChangeNotifier {
       final loginUser = _readSavedLoginUser();
       if (loginUser == null) {
         _memosError = 'Login session not found. Please login again.';
-        if (reset) _clearMemoSummary();
+        if (reset && !silent) _clearMemoSummary();
         _isMemosLoading = false;
         _isLoadingMore = false;
+        _isSilentRefreshing = false;
         notifyListeners();
         return;
       }
@@ -341,14 +421,15 @@ class MemoProvider extends ChangeNotifier {
       final productId = await clientCodeStorage.getClientCode();
       if (productId == null || productId.isEmpty) {
         _memosError = 'Product id not found.';
-        if (reset) _clearMemoSummary();
+        if (reset && !silent) _clearMemoSummary();
         _isMemosLoading = false;
         _isLoadingMore = false;
+        _isSilentRefreshing = false;
         notifyListeners();
         return;
       }
 
-      final requestPage = reset ? 1 : _pageNum + 1;
+      final requestPage = reset ? 0 : _pageNum + 1;
       final partyIds = _selectedParty?.ledgerId.toString() ?? '';
       debugPrint(
         'Memo delivery filter → Type=1, PartyIDs=$partyIds, '
@@ -368,27 +449,32 @@ class MemoProvider extends ChangeNotifier {
         pageSize: pageSize,
       );
 
+
       if (!response.isMemoListSuccess) {
         _memosError = response.error.isNotEmpty
             ? response.error
             : (response.message.isNotEmpty
                   ? response.message
                   : 'Unable to load memos');
-        if (reset) _clearMemoSummary();
+        if (reset && !silent) _clearMemoSummary();
         _isMemosLoading = false;
         _isLoadingMore = false;
+        _isSilentRefreshing = false;
         notifyListeners();
         return;
       }
 
       final rows = response.rows;
+      var addedCount = 0;
       if (reset) {
         _memos = rows;
+        addedCount = rows.length;
       } else {
         final existingIds = _memos.map((m) => m.memoId).toSet();
         for (final memo in rows) {
           if (!existingIds.contains(memo.memoId)) {
             _memos.add(memo);
+            addedCount++;
           }
         }
       }
@@ -398,27 +484,31 @@ class MemoProvider extends ChangeNotifier {
       _totalRate = response.totalRate;
       _totalAmt = response.totalAmt;
       _totalCts = response.totalCts;
-      _totalCount = response.totalCount > 0
-          ? response.totalCount
-          : _memos.length;
-      _hasMore = rows.length >= pageSize &&
-          (_totalCount <= 0 || _memos.length < _totalCount);
+      final apiTotalCount = response.totalCount;
+      _totalCount = apiTotalCount > 0 ? apiTotalCount : _memos.length;
+      _hasMore = rows.isNotEmpty &&
+          addedCount > 0 &&
+          rows.length >= pageSize &&
+          (apiTotalCount <= 0 || _memos.length < apiTotalCount);
       _applyMemoFilter(notify: false);
 
       debugPrint(
         'Memo list loaded → page=$_pageNum, pageRows=${rows.length}, '
-        'totalLoaded=${_memos.length}, hasMore=$_hasMore',
+        'added=$addedCount, totalLoaded=${_memos.length}, '
+        'apiTotal=$apiTotalCount, hasMore=$_hasMore',
       );
 
       _isMemosLoading = false;
       _isLoadingMore = false;
+      _isSilentRefreshing = false;
       notifyListeners();
     } catch (error) {
       debugPrint('Memo list ERROR: $error');
       _memosError = 'Unable to load memos. Please try again.';
-      if (reset) _clearMemoSummary();
+      if (reset && !silent) _clearMemoSummary();
       _isMemosLoading = false;
       _isLoadingMore = false;
+      _isSilentRefreshing = false;
       notifyListeners();
     }
   }
@@ -443,6 +533,24 @@ class MemoProvider extends ChangeNotifier {
   /// UI shows ALL / PENDING / DELIVERED; API gets blank for ALL.
   String get deliveredStatusForApi =>
       _selectedDeliveredStatus == 'ALL' ? '' : _selectedDeliveredStatus;
+
+  /// Map a memo card status to list filter value for Type=2 detail calls.
+  static String deliveredStatusFromMemo(Memo memo) {
+    final raw = memo.memoStatusRaw.trim().toUpperCase();
+    if (raw.contains('DELIVERED') ||
+        raw.contains('DISPATCH') ||
+        raw == 'RETURN') {
+      return 'DELIVERED';
+    }
+    if (raw.contains('PENDING')) return 'PENDING';
+    return memo.status == MemoStatus.dispatched ? 'DELIVERED' : 'PENDING';
+  }
+
+  static String _normalizeDeliveredStatus(String status) {
+    final normalized = status.trim().toUpperCase();
+    if (deliveredStatusOptions.contains(normalized)) return normalized;
+    return 'PENDING';
+  }
 
   void _filterMemos() => _applyMemoFilter(notify: true);
 

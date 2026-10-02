@@ -172,7 +172,7 @@ class _MemoDetailScreenState extends State<MemoDetailScreen> {
           title: 'Memo PDF · ${_memo.id}',
         ),
       );
-      if (mounted) await _loadDiamonds();
+      if (mounted) Navigator.pop(context, true);
     } finally {
       printProvider.dispose();
       if (mounted) {
@@ -331,7 +331,9 @@ class _MemoDetailScreenState extends State<MemoDetailScreen> {
             ),
         ],
       ),
-      bottomNavigationBar: SafeArea(
+      bottomNavigationBar: (_isDiamondsLoading || _memo.diamonds.isEmpty)
+          ? null
+          : SafeArea(
         top: false,
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -888,19 +890,10 @@ class _MemoPdfDialogState extends State<_MemoPdfDialog> {
                           _PdfHeaderIconButton(
                             tooltip: 'Download',
                             onPressed: _isBusy ? null : _onDownload,
-                            child: _isDownloading
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: AppColors.white,
-                                    ),
-                                  )
-                                : const Icon(
-                                    Icons.download_rounded,
-                                    color: AppColors.white,
-                                  ),
+                            child: const Icon(
+                              Icons.download_rounded,
+                              color: AppColors.white,
+                            ),
                           ),
                           const SizedBox(width: 4),
                           _PdfHeaderIconButton(
@@ -979,6 +972,8 @@ class _MemoPdfDialogState extends State<_MemoPdfDialog> {
                 ),
               ],
             ),
+                if (_isDownloading)
+                  const FullScreenLoader(message: 'Downloading PDF...'),
                 if (_isSharing)
                   const FullScreenLoader(message: 'Preparing to share...'),
               ],
@@ -1024,7 +1019,6 @@ class _MemoPdfDialogState extends State<_MemoPdfDialog> {
       if (!mounted) return path;
       setState(() => _localPath = path);
 
-      // Explicit Download action → public Downloads on Android.
       if (forceDownload && Platform.isAndroid) {
         await PdfFileHelper.saveToPublicDownloads(
           sourcePath: path,
@@ -1071,8 +1065,6 @@ class _MemoPdfDialogState extends State<_MemoPdfDialog> {
       );
       if (path == null || !mounted) return;
 
-      // iPhone cannot write to system Downloads; open share sheet so user
-      // can choose Save to Files → Downloads / On My iPhone.
       if (PdfFileHelper.needsUserSavePicker) {
         await PdfFileHelper.shareLocalFile(
           context: context,
@@ -1357,7 +1349,6 @@ class _MemoPrintFormatDialog extends StatelessWidget {
       isSuccess: true,
     );
 
-    // Same as before: after signature success, continue to PDF view.
     if (provider.selectedPrint == null) {
       Utils().showToast(
         context: context,
@@ -1489,39 +1480,45 @@ class _MemoDetailSignatureDialogState
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: _isSaving ? null : () => Navigator.pop(context),
-          child: Text(
-            'Cancel',
-            style: TextStyle(fontFamily: FontFamily.montserratMedium),
-          ),
-        ),
-        TextButton(
-          onPressed: _isSaving || _points.isEmpty
-              ? null
-              : () => setState(() => _points.clear()),
-          child: Text(
-            'Clear',
-            style: TextStyle(fontFamily: FontFamily.montserratMedium),
-          ),
-        ),
-        FilledButton(
-          onPressed: _isSaving || _points.isEmpty ? null : _saveSignature,
-          style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-          child: _isSaving
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    color: AppColors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-              : Text(
-                  'Save',
-                  style: TextStyle(fontFamily: FontFamily.montserratSemiBold),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            TextButton(
+              onPressed: _isSaving ? null : () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: TextStyle(fontFamily: FontFamily.montserratMedium),
+              ),
+            ),
+            TextButton(
+              onPressed: _isSaving || _points.isEmpty
+                  ? null
+                  : () => setState(() => _points.clear()),
+              child: Text(
+                'Clear',
+                style: TextStyle(fontFamily: FontFamily.montserratMedium),
+              ),
+            ),
+            FilledButton(
+              onPressed: _isSaving || _points.isEmpty ? null : _saveSignature,
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              child: _isSaving
+                  ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  color: AppColors.white,
+                  strokeWidth: 2,
                 ),
+              )
+                  : Text(
+                'Save',
+                style: TextStyle(fontFamily: FontFamily.montserratSemiBold),
+              ),
+            ),
+          ],
         ),
+
       ],
     );
   }

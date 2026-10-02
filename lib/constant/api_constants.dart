@@ -1,5 +1,5 @@
 class ApiConstants {
-  static const String baseUrl = 'https://local.diamx.net/diamx-api/';
+  static const String baseUrl = 'http://diamxapp.diamx.net/diamx-api/';
 
   /// Confirm / validate product (client) id.
   static const String confirmProductId = 'confirm-product-id';
@@ -8,6 +8,7 @@ class ApiConstants {
   /// User login.
   static const String login = 'login';
   static const String getPartyList = 'get-party-list';
+  static const String getPartyListFormWise = 'get-PartyList-Form-Wise';
   static const String logout = 'logout';
 
   /// Upload print / digital signature image.

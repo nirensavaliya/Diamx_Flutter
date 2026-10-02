@@ -237,7 +237,7 @@ class ApiService {
       loginPayload['Product_ID'] = productId;
     }
 
-    final dataJson = jsonEncode({
+    final dataMap = {
       'login': loginPayload,
       'Obj': {
         'Digital_Signature_ID': digitalSignatureId,
@@ -247,15 +247,20 @@ class ApiService {
         'Print_ID': printId,
       },
       'Product_ID': productId,
-    });
+    };
+    final dataJson = jsonEncode(dataMap);
 
-    debugPrint(
-      'savePrintUrlPath → file=$safeFileName '
-      'bytes=${signatureBytes.length} mime=image/$mimeSubtype '
-      'Transaction_ID=$transactionId Transaction_No=$transactionNo '
-      'Transaction_Type=$transactionType Print_ID=$printId',
+    print('========== save-Print-Url-Path REQUEST ==========');
+    final logBody = Map<String, dynamic>.from(dataMap)..remove('login');
+    print(
+      const JsonEncoder.withIndent('  ').convert({
+        'fileName': safeFileName,
+        'bytes': signatureBytes.length,
+        'mime': 'image/$mimeSubtype',
+        ...logBody,
+      }),
     );
-    debugPrint('savePrintUrlPath → data=$dataJson');
+    print('=================================================');
 
     try {
       final formData = FormData.fromMap({
@@ -273,6 +278,18 @@ class ApiService {
       );
 
       final raw = response.data;
+      print('========== save-Print-Url-Path RESPONSE ==========');
+      try {
+        if (raw is Map || raw is List) {
+          print(const JsonEncoder.withIndent('  ').convert(raw));
+        } else {
+          print(raw?.toString() ?? 'null');
+        }
+      } catch (_) {
+        print(raw?.toString() ?? 'null');
+      }
+      print('==================================================');
+
       if (raw is Map<String, dynamic>) return raw;
       if (raw is Map) return Map<String, dynamic>.from(raw);
       if (raw is String) {

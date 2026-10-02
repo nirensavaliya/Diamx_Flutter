@@ -1,13 +1,11 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-
 import '../../models/invoice.dart';
 import '../../models/print_template.dart';
 import '../../providers/invoice_office_delivery_print_provider.dart';
@@ -110,7 +108,6 @@ class _InvoiceOfficeDeliveryDetailScreenState extends State<InvoiceOfficeDeliver
         return;
       }
 
-      // Hide loader so format dialog is visible.
       setState(() {
         _isPrintBusy = false;
         _printBusyMessage = '';
@@ -174,7 +171,7 @@ class _InvoiceOfficeDeliveryDetailScreenState extends State<InvoiceOfficeDeliver
           title: 'Invoice Office PDF · ${_invoice.id}',
         ),
       );
-      if (mounted) await _loadItems();
+      if (mounted) Navigator.pop(context, true);
     } finally {
       printProvider.dispose();
       if (mounted) {
@@ -343,7 +340,9 @@ class _InvoiceOfficeDeliveryDetailScreenState extends State<InvoiceOfficeDeliver
             ),
         ],
       ),
-      bottomNavigationBar: SafeArea(
+      bottomNavigationBar: (_isItemsLoading || _invoice.items.isEmpty)
+          ? null
+          : SafeArea(
         top: false,
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -852,19 +851,10 @@ class _InvoicePdfDialogState extends State<_InvoicePdfDialog> {
                           _InvoicePdfHeaderIconButton(
                             tooltip: 'Download',
                             onPressed: _isBusy ? null : _onDownload,
-                            child: _isDownloading
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: AppColors.white,
-                                    ),
-                                  )
-                                : const Icon(
-                                    Icons.download_rounded,
-                                    color: AppColors.white,
-                                  ),
+                            child: const Icon(
+                              Icons.download_rounded,
+                              color: AppColors.white,
+                            ),
                           ),
                           const SizedBox(width: 4),
                           _InvoicePdfHeaderIconButton(
@@ -943,6 +933,8 @@ class _InvoicePdfDialogState extends State<_InvoicePdfDialog> {
                 ),
               ],
             ),
+                if (_isDownloading)
+                  const FullScreenLoader(message: 'Downloading PDF...'),
                 if (_isSharing)
                   const FullScreenLoader(message: 'Preparing to share...'),
               ],
@@ -988,7 +980,6 @@ class _InvoicePdfDialogState extends State<_InvoicePdfDialog> {
       if (!mounted) return path;
       setState(() => _localPath = path);
 
-      // Explicit Download action → public Downloads on Android.
       if (forceDownload && Platform.isAndroid) {
         await PdfFileHelper.saveToPublicDownloads(
           sourcePath: path,
@@ -1035,8 +1026,6 @@ class _InvoicePdfDialogState extends State<_InvoicePdfDialog> {
       );
       if (path == null || !mounted) return;
 
-      // iPhone cannot write to system Downloads; open share sheet so user
-      // can choose Save to Files → Downloads / On My iPhone.
       if (PdfFileHelper.needsUserSavePicker) {
         await PdfFileHelper.shareLocalFile(
           context: context,
@@ -1321,7 +1310,6 @@ class _InvoicePrintFormatDialog extends StatelessWidget {
       isSuccess: true,
     );
 
-    // Same as before: after signature success, continue to PDF view.
     if (provider.selectedPrint == null) {
       Utils().showToast(
         context: context,
@@ -1453,39 +1441,45 @@ class _InvoiceDetailSignatureDialogState
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: _isSaving ? null : () => Navigator.pop(context),
-          child: Text(
-            'Cancel',
-            style: TextStyle(fontFamily: FontFamily.montserratMedium),
-          ),
-        ),
-        TextButton(
-          onPressed: _isSaving || _points.isEmpty
-              ? null
-              : () => setState(() => _points.clear()),
-          child: Text(
-            'Clear',
-            style: TextStyle(fontFamily: FontFamily.montserratMedium),
-          ),
-        ),
-        FilledButton(
-          onPressed: _isSaving || _points.isEmpty ? null : _saveSignature,
-          style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-          child: _isSaving
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    color: AppColors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-              : Text(
-                  'Save',
-                  style: TextStyle(fontFamily: FontFamily.montserratSemiBold),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            TextButton(
+              onPressed: _isSaving ? null : () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: TextStyle(fontFamily: FontFamily.montserratMedium),
+              ),
+            ),
+            TextButton(
+              onPressed: _isSaving || _points.isEmpty
+                  ? null
+                  : () => setState(() => _points.clear()),
+              child: Text(
+                'Clear',
+                style: TextStyle(fontFamily: FontFamily.montserratMedium),
+              ),
+            ),
+            FilledButton(
+              onPressed: _isSaving || _points.isEmpty ? null : _saveSignature,
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              child: _isSaving
+                  ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  color: AppColors.white,
+                  strokeWidth: 2,
                 ),
+              )
+                  : Text(
+                'Save',
+                style: TextStyle(fontFamily: FontFamily.montserratSemiBold),
+              ),
+            ),
+          ],
         ),
+
       ],
     );
   }

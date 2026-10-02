@@ -222,7 +222,7 @@ class DeliveryInfoDialog extends StatelessWidget {
                   ),
                 ),
               ),
-              Padding(
+         /*     Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                 child: Align(
                   alignment: Alignment.centerRight,
@@ -237,7 +237,7 @@ class DeliveryInfoDialog extends StatelessWidget {
                     ),
                   ),
                 ),
-              ),
+              ),*/
             ],
           ),
         ),

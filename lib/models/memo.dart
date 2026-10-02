@@ -203,6 +203,12 @@ class MemoIssueSummaryResponse {
       totalAmt = _asDouble(map['TotalAmt']);
       totalCount = _asInt(map['TotalCount']);
     }
+    if (totalCount <= 0) {
+      totalCount = _asInt(json['TotalCount']);
+    }
+    if (totalCount <= 0 && resultRows.isNotEmpty) {
+      totalCount = _asInt(resultRows.first['TotalCount']);
+    }
 
     final List<Memo> rows;
     final isStoneLevel =
@@ -246,7 +252,8 @@ class MemoIssueSummaryResponse {
       }
     }
 
-    totalCount = totalCount > 0 ? totalCount : rows.length;
+    // Do not fall back to rows.length — that breaks pagination when API
+    // returns a full page without a TotalCount field.
 
     return MemoIssueSummaryResponse(
       message: json['Message']?.toString() ?? '',

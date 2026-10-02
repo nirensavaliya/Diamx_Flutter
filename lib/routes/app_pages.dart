@@ -52,9 +52,28 @@ class AppPages {
       child: const MemoScreen(),
     ),
     AppRoutes.memoDetail: (context) {
-      final memo = ModalRoute.of(context)!.settings.arguments! as Memo;
+      final args = ModalRoute.of(context)!.settings.arguments;
+      late final Memo memo;
+      String? listDeliveredStatus;
+      if (args is Memo) {
+        memo = args;
+      } else if (args is Map) {
+        memo = args['memo'] as Memo;
+        listDeliveredStatus = args['deliveredStatus']?.toString();
+      } else {
+        throw StateError('MemoDetail requires Memo arguments');
+      }
+
+      final initialStatus =
+          (listDeliveredStatus != null && listDeliveredStatus.trim().isNotEmpty)
+          ? listDeliveredStatus
+          : MemoProvider.deliveredStatusFromMemo(memo);
+
       return ChangeNotifierProvider(
-        create: (_) => MemoProvider(bootstrap: false),
+        create: (_) => MemoProvider(
+          bootstrap: false,
+          initialDeliveredStatus: initialStatus,
+        ),
         child: MemoDetailScreen(memo: memo),
       );
     },
@@ -70,9 +89,28 @@ class AppPages {
       child: const InvoiceListScreen(),
     ),
     AppRoutes.invoiceDetail: (context) {
-      final invoice = ModalRoute.of(context)!.settings.arguments! as Invoice;
+      final args = ModalRoute.of(context)!.settings.arguments;
+      late final Invoice invoice;
+      String? listDeliveredStatus;
+      if (args is Invoice) {
+        invoice = args;
+      } else if (args is Map) {
+        invoice = args['invoice'] as Invoice;
+        listDeliveredStatus = args['deliveredStatus']?.toString();
+      } else {
+        throw StateError('InvoiceDetail requires Invoice arguments');
+      }
+
+      final initialStatus =
+          (listDeliveredStatus != null && listDeliveredStatus.trim().isNotEmpty)
+          ? listDeliveredStatus
+          : InvoiceProvider.deliveredStatusFromInvoice(invoice);
+
       return ChangeNotifierProvider(
-        create: (_) => InvoiceProvider(bootstrap: false),
+        create: (_) => InvoiceProvider(
+          bootstrap: false,
+          initialDeliveredStatus: initialStatus,
+        ),
         child: InvoiceDetailScreen(invoice: invoice),
       );
     },
@@ -88,9 +126,28 @@ class AppPages {
       child: const MemoOfficeDeliveryScreen(),
     ),
     AppRoutes.memoOfficeDeliveryDetail: (context) {
-      final memo = ModalRoute.of(context)!.settings.arguments! as Memo;
+      final args = ModalRoute.of(context)!.settings.arguments;
+      late final Memo memo;
+      String? listDeliveredStatus;
+      if (args is Memo) {
+        memo = args;
+      } else if (args is Map) {
+        memo = args['memo'] as Memo;
+        listDeliveredStatus = args['deliveredStatus']?.toString();
+      } else {
+        throw StateError('MemoOfficeDeliveryDetail requires Memo arguments');
+      }
+
+      final initialStatus =
+          (listDeliveredStatus != null && listDeliveredStatus.trim().isNotEmpty)
+          ? listDeliveredStatus
+          : MemoOfficeDeliveryProvider.deliveredStatusFromMemo(memo);
+
       return ChangeNotifierProvider(
-        create: (_) => MemoOfficeDeliveryProvider(bootstrap: false),
+        create: (_) => MemoOfficeDeliveryProvider(
+          bootstrap: false,
+          initialDeliveredStatus: initialStatus,
+        ),
         child: MemoOfficeDeliveryDetailScreen(memo: memo),
       );
     },
@@ -106,9 +163,30 @@ class AppPages {
       child: const InvoiceOfficeDeliveryScreen(),
     ),
     AppRoutes.invoiceOfficeDeliveryDetail: (context) {
-      final invoice = ModalRoute.of(context)!.settings.arguments! as Invoice;
+      final args = ModalRoute.of(context)!.settings.arguments;
+      late final Invoice invoice;
+      String? listDeliveredStatus;
+      if (args is Invoice) {
+        invoice = args;
+      } else if (args is Map) {
+        invoice = args['invoice'] as Invoice;
+        listDeliveredStatus = args['deliveredStatus']?.toString();
+      } else {
+        throw StateError(
+          'InvoiceOfficeDeliveryDetail requires Invoice arguments',
+        );
+      }
+
+      final initialStatus =
+          (listDeliveredStatus != null && listDeliveredStatus.trim().isNotEmpty)
+          ? listDeliveredStatus
+          : InvoiceOfficeDeliveryProvider.deliveredStatusFromInvoice(invoice);
+
       return ChangeNotifierProvider(
-        create: (_) => InvoiceOfficeDeliveryProvider(bootstrap: false),
+        create: (_) => InvoiceOfficeDeliveryProvider(
+          bootstrap: false,
+          initialDeliveredStatus: initialStatus,
+        ),
         child: InvoiceOfficeDeliveryDetailScreen(invoice: invoice),
       );
     },

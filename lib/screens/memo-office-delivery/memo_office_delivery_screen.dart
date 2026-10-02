@@ -5,14 +5,13 @@ import '../../models/memo.dart';
 import '../../providers/memo_office_delivery_print_provider.dart';
 import '../../providers/memo_office_delivery_provider.dart';
 import '../../routes/app_routes.dart';
-import '../../services/api_service.dart';
 import '../../utills/app_colors.dart';
 import '../../utills/app_font.dart';
 import '../../utills/app_images.dart';
 import '../../utills/app_toast.dart';
-import '../../utills/pdf_file_helper.dart';
 import '../../widgets/app_list_shimmer.dart';
 import '../../widgets/app_loader.dart';
+import '../../widgets/app_pdf_preview_dialog.dart';
 import '../../widgets/delivery_info_dialog.dart';
 import '../../widgets/searchable_party_picker.dart';
 
@@ -86,36 +85,26 @@ class _MemoOfficeDeliveryScreenState extends State<MemoOfficeDeliveryScreen> {
 
       final safeId = memo.id.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
       final fileName = 'Diamx_${safeId}_Memo.pdf';
-      final path = await PdfFileHelper.downloadAndSavePdf(
-        url: url,
-        fileName: fileName,
-        downloadFile: ApiService.shared().downloadFile,
-      );
       if (!mounted) return;
 
       setState(() => _downloadingMemoId = null);
 
-      if (PdfFileHelper.needsUserSavePicker) {
-        await PdfFileHelper.shareLocalFile(
-          context: context,
-          filePath: path,
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        builder: (_) => AppPdfPreviewDialog(
+          networkUrl: url,
+          fileName: fileName,
           title: 'Memo Office PDF · ${memo.id}',
-        );
-      } else {
-        Utils().showToast(
-          context: context,
-          title: 'Success',
-          message: 'PDF saved to Downloads.',
-          isSuccess: true,
-        );
-      }
+        ),
+      );
     } catch (error) {
       if (!mounted) return;
       setState(() => _downloadingMemoId = null);
       Utils().showToast(
         context: context,
         title: 'Error',
-        message: PdfFileHelper.errorMessage(error),
+        message: error.toString().replaceFirst('Exception: ', ''),
         isSuccess: false,
       );
     } finally {
@@ -231,8 +220,7 @@ class _MemoOfficeDeliveryScreenState extends State<MemoOfficeDeliveryScreen> {
             children: [
               NotificationListener<ScrollNotification>(
                 onNotification: (notification) {
-                  if (notification is! ScrollUpdateNotification &&
-                      notification is! OverscrollNotification) {
+                  if (notification is! ScrollUpdateNotification) {
                     return false;
                   }
                   if (!provider.hasMore ||
@@ -242,12 +230,26 @@ class _MemoOfficeDeliveryScreenState extends State<MemoOfficeDeliveryScreen> {
                   }
                   final metrics = notification.metrics;
                   if (metrics.maxScrollExtent <= 0) return false;
-                  if (metrics.pixels >= metrics.maxScrollExtent - 320) {
-                    provider.loadMoreMemos();
+                  if (metrics.pixels < metrics.maxScrollExtent - 240) {
+                    return false;
                   }
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!context.mounted) return;
+                    final p = context.read<MemoOfficeDeliveryProvider>();
+                    if (p.hasMore && !p.isLoadingMore && !p.isMemosLoading) {
+                      p.loadMoreMemos();
+                    }
+                  });
                   return false;
                 },
-                child: CustomScrollView(
+                child: RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () =>
+                      context.read<MemoOfficeDeliveryProvider>().loadMemos(
+                            reset: true,
+                            silent: true,
+                          ),
+                  child: CustomScrollView(
                   physics: const AlwaysScrollableScrollPhysics(
                     parent: BouncingScrollPhysics(),
                   ),
@@ -415,11 +417,23 @@ class _MemoOfficeDeliveryScreenState extends State<MemoOfficeDeliveryScreen> {
                         isDelivered: _isDelivered(memo),
                         isDownloading: _downloadingMemoId == memo.id,
                         onDownload: () => _downloadDeliveredPdf(memo),
-                        onTap: () => Navigator.pushNamed(
-                          context,
-                          AppRoutes.memoOfficeDeliveryDetail,
-                          arguments: memo,
-                        ),
+                        onTap: () async {
+                          final result = await Navigator.pushNamed(
+                            context,
+                            AppRoutes.memoOfficeDeliveryDetail,
+                            arguments: {
+                              'memo': memo,
+                              'deliveredStatus':
+                                  provider.selectedDeliveredStatus,
+                            },
+                          );
+                          if (!context.mounted) return;
+                          if (result == true) {
+                            await context
+                                .read<MemoOfficeDeliveryProvider>()
+                                .loadMemos(reset: true, silent: true);
+                          }
+                        },
                       );
                     },
                   ),
@@ -440,6 +454,7 @@ class _MemoOfficeDeliveryScreenState extends State<MemoOfficeDeliveryScreen> {
               ],
             ],
           ),
+                ),
               ),
               if (provider.isPartiesLoading)
                 const FullScreenLoader(message: 'Loading parties...'),

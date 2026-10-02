@@ -1,4 +1,4 @@
-package com.oozee.diamxpro
+package com.oozee.diamx
 
 import android.content.ContentValues
 import android.os.Build

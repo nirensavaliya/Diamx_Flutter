@@ -5,13 +5,12 @@ import '../../models/invoice.dart';
 import '../../providers/invoice_print_provider.dart';
 import '../../providers/invoice_provider.dart';
 import '../../routes/app_routes.dart';
-import '../../services/api_service.dart';
 import '../../utills/app_colors.dart';
 import '../../utills/app_font.dart';
 import '../../utills/app_toast.dart';
-import '../../utills/pdf_file_helper.dart';
 import '../../widgets/app_list_shimmer.dart';
 import '../../widgets/app_loader.dart';
+import '../../widgets/app_pdf_preview_dialog.dart';
 import '../../widgets/delivery_info_dialog.dart';
 import '../../widgets/searchable_party_picker.dart';
 
@@ -85,36 +84,26 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
 
       final safeId = invoice.id.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
       final fileName = 'Diamx_${safeId}_Invoice.pdf';
-      final path = await PdfFileHelper.downloadAndSavePdf(
-        url: url,
-        fileName: fileName,
-        downloadFile: ApiService.shared().downloadFile,
-      );
       if (!mounted) return;
 
       setState(() => _downloadingInvoiceId = null);
 
-      if (PdfFileHelper.needsUserSavePicker) {
-        await PdfFileHelper.shareLocalFile(
-          context: context,
-          filePath: path,
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        builder: (_) => AppPdfPreviewDialog(
+          networkUrl: url,
+          fileName: fileName,
           title: 'Invoice PDF · ${invoice.id}',
-        );
-      } else {
-        Utils().showToast(
-          context: context,
-          title: 'Success',
-          message: 'PDF saved to Downloads.',
-          isSuccess: true,
-        );
-      }
+        ),
+      );
     } catch (error) {
       if (!mounted) return;
       setState(() => _downloadingInvoiceId = null);
       Utils().showToast(
         context: context,
         title: 'Error',
-        message: PdfFileHelper.errorMessage(error),
+        message: error.toString().replaceFirst('Exception: ', ''),
         isSuccess: false,
       );
     } finally {
@@ -213,8 +202,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             children: [
               NotificationListener<ScrollNotification>(
                 onNotification: (notification) {
-                  if (notification is! ScrollUpdateNotification &&
-                      notification is! OverscrollNotification) {
+                  if (notification is! ScrollUpdateNotification) {
                     return false;
                   }
                   if (!provider.hasMore ||
@@ -224,12 +212,25 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                   }
                   final metrics = notification.metrics;
                   if (metrics.maxScrollExtent <= 0) return false;
-                  if (metrics.pixels >= metrics.maxScrollExtent - 320) {
-                    provider.loadMoreInvoices();
+                  if (metrics.pixels < metrics.maxScrollExtent - 240) {
+                    return false;
                   }
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!context.mounted) return;
+                    final p = context.read<InvoiceProvider>();
+                    if (p.hasMore && !p.isLoadingMore && !p.isInvoicesLoading) {
+                      p.loadMoreInvoices();
+                    }
+                  });
                   return false;
                 },
-                child: CustomScrollView(
+                child: RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () => context.read<InvoiceProvider>().loadInvoices(
+                        reset: true,
+                        silent: true,
+                      ),
+                  child: CustomScrollView(
                   physics: const AlwaysScrollableScrollPhysics(
                     parent: BouncingScrollPhysics(),
                   ),
@@ -380,11 +381,23 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                             isDelivered: _isDelivered(invoice),
                             isDownloading: _downloadingInvoiceId == invoice.id,
                             onDownload: () => _downloadDeliveredPdf(invoice),
-                            onTap: () => Navigator.pushNamed(
-                              context,
-                              AppRoutes.invoiceDetail,
-                              arguments: invoice,
-                            ),
+                            onTap: () async {
+                              final result = await Navigator.pushNamed(
+                                context,
+                                AppRoutes.invoiceDetail,
+                                arguments: {
+                                  'invoice': invoice,
+                                  'deliveredStatus':
+                                      provider.selectedDeliveredStatus,
+                                },
+                              );
+                              if (!context.mounted) return;
+                              if (result == true) {
+                                await context
+                                    .read<InvoiceProvider>()
+                                    .loadInvoices(reset: true, silent: true);
+                              }
+                            },
                           );
                         },
                       ),
@@ -405,6 +418,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                   ],
                 ],
               ),
+                ),
               ),
               if (provider.isPartiesLoading)
                 const FullScreenLoader(message: 'Loading parties...'),
@@ -528,14 +542,6 @@ class _SummarySection extends StatelessWidget {
       children: [
         Row(
           children: [
-            // Expanded(
-            //   child: _SummaryChip(
-            //     label: 'Pcs',
-            //     value: _formatNumber(provider.totalPcs),
-            //     color: AppColors.primary,
-            //   ),
-            // ),
-            // const SizedBox(width: 8),
             Expanded(
               child: _SummaryChip(
                 label: 'Count',
