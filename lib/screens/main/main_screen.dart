@@ -44,6 +44,8 @@ class _MainScreenState extends State<MainScreen> {
             children: const [HomeScreen(), ProfileScreen()],
           ),
           bottomNavigationBar: AnimatedNotchBottomBar(
+            bottomBarWidth: MediaQuery.of(context).size.width,
+            removeMargins: false,
             notchBottomBarController: _notchController,
             color: AppColors.primaryDark,
             notchColor: AppColors.accent,
