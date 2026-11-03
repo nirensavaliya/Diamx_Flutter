@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:diamax_flutter/utills/app_images.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
@@ -56,11 +57,10 @@ class _SplashScreenState extends State<SplashScreen>
       backgroundColor: Colors.black,
       body: DecoratedBox(
         decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -0.15),
-            radius: 1.15,
-            colors: [Color(0xFF06231C), Color(0xFF03110D), Colors.black],
-            stops: [0, 0.55, 1],
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.primaryDark, AppColors.primary, AppColors.primaryLight],
           ),
         ),
         child: SafeArea(
@@ -121,7 +121,7 @@ class _SplashScreenState extends State<SplashScreen>
                         'A WORLD OF BRILLIANCE',
                         style: TextStyle(
                           fontFamily: FontFamily.montserratMedium,
-                          color: AppColors.secondary.withValues(alpha: 0.75),
+                          color: AppColors.background,
                           fontSize: 9,
                           letterSpacing: 2.6,
                         ),
@@ -305,29 +305,34 @@ class _BrandSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFFF3D99A), AppColors.accent, Color(0xFFFFE9B7)],
-          ).createShader(bounds),
-          child: Text(
-            'DIAMX',
-            style: TextStyle(
-              fontFamily: FontFamily.montserratExtraBold,
-              color: AppColors.white,
-              fontSize: 39,
-              letterSpacing: 9,
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'D I A M X   M A N A G E M E N T',
-          style: TextStyle(
-            fontFamily: FontFamily.montserratMedium,
-            color: AppColors.secondary,
-            fontSize: 9,
-            letterSpacing: 2.8,
-          ),
+        // ShaderMask(
+        //   shaderCallback: (bounds) => const LinearGradient(
+        //     colors: [Color(0xFFF3D99A), AppColors.accent, Color(0xFFFFE9B7)],
+        //   ).createShader(bounds),
+        //   child: Text(
+        //     'DIAMX',
+        //     style: TextStyle(
+        //       fontFamily: FontFamily.montserratExtraBold,
+        //       color: AppColors.white,
+        //       fontSize: 39,
+        //       letterSpacing: 9,
+        //     ),
+        //   ),
+        // ),
+        // const SizedBox(height: 10),
+        // Text(
+        //   'D I A M X   M A N A G E M E N T',
+        //   style: TextStyle(
+        //     fontFamily: FontFamily.montserratMedium,
+        //     color: AppColors.secondary,
+        //     fontSize: 9,
+        //     letterSpacing: 2.8,
+        //   ),
+        // ),
+        Image.asset(
+          AppImages.appLogoTwo,
+          height: 65,
+          fit: BoxFit.contain,
         ),
       ],
     );

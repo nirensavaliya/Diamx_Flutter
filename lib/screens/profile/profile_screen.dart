@@ -131,7 +131,7 @@ class _ProfileAppBar extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.primaryDark, AppColors.primary, Color(0xFF14634E)],
+          colors: [AppColors.primaryDark, AppColors.primary, AppColors.primaryLight],
         ),
       ),
       child: Stack(
@@ -203,7 +203,7 @@ class _ProfileHeroCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.primaryDark, AppColors.primary, Color(0xFF14634E)],
+          colors: [AppColors.primaryDark, AppColors.primary, AppColors.primaryLight],
         ),
         borderRadius: BorderRadius.circular(26),
         boxShadow: [

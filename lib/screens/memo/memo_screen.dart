@@ -134,7 +134,7 @@ class _MemoScreenState extends State<MemoScreen> {
               colors: [
                 AppColors.primaryDark,
                 AppColors.primary,
-                Color(0xFF14634E),
+                AppColors.primaryLight,
               ],
             ),
           ),

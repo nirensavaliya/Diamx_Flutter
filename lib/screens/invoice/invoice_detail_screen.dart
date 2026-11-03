@@ -205,7 +205,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
               colors: [
                 AppColors.primaryDark,
                 AppColors.primary,
-                Color(0xFF14634E),
+                AppColors.primaryLight,
               ],
             ),
           ),

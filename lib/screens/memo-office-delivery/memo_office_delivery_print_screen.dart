@@ -41,7 +41,7 @@ class MemoOfficeDeliveryPrintScreen extends StatelessWidget {
                       colors: [
                         AppColors.primaryDark,
                         AppColors.primary,
-                        Color(0xFF14634E),
+                        AppColors.primaryLight,
                       ],
                     ),
                   ),
@@ -341,7 +341,7 @@ class _PrintHeader extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.primaryDark, AppColors.primary, Color(0xFF14634E)],
+          colors: [AppColors.primaryDark, AppColors.primary, AppColors.primaryLight],
           stops: [0, 0.62, 1],
         ),
         borderRadius: BorderRadius.circular(25),

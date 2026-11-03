@@ -163,7 +163,7 @@ class _HomeAppBar extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.primaryDark, AppColors.primary, Color(0xFF14634E)],
+          colors: [AppColors.primaryDark, AppColors.primary, AppColors.primaryLight],
         ),
       ),
       child: Stack(
@@ -210,19 +210,15 @@ class _HomeAppBar extends StatelessWidget {
                           'Good afternoon',
                           style: TextStyle(
                             fontFamily: FontFamily.montserratRegular,
-                            color: AppColors.white.withValues(alpha: 0.7),
+                            color: AppColors.white.withValues(alpha: 0.9),
                             fontSize: 11,
                           ),
                         ),
                         const SizedBox(height: 3),
-                        Text(
-                          'DIAMX',
-                          style: TextStyle(
-                            fontFamily: FontFamily.montserratExtraBold,
-                            color: AppColors.white,
-                            fontSize: 20,
-                            letterSpacing: 3,
-                          ),
+                        Image.asset(
+                          AppImages.appLogoTwo,
+                          height: 30,
+                          fit: BoxFit.contain,
                         ),
                       ],
                     ),
@@ -288,7 +284,7 @@ class _WelcomeBanner extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.primaryDark, AppColors.primary, Color(0xFF14634E)],
+          colors: [AppColors.primaryDark, AppColors.primary, AppColors.primaryLight],
           stops: [0, 0.58, 1],
         ),
         borderRadius: BorderRadius.circular(28),

@@ -133,7 +133,7 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
               colors: [
                 AppColors.primaryDark,
                 AppColors.primary,
-                Color(0xFF14634E),
+                AppColors.primaryLight,
               ],
             ),
           ),

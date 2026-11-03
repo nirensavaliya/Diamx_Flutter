@@ -205,7 +205,7 @@ class _MemoOfficeDeliveryDetailScreenState extends State<MemoOfficeDeliveryDetai
               colors: [
                 AppColors.primaryDark,
                 AppColors.primary,
-                Color(0xFF14634E),
+                AppColors.primaryLight,
               ],
             ),
           ),

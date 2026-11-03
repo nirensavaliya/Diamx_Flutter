@@ -133,7 +133,7 @@ class _InvoiceOfficeDeliveryScreenState extends State<InvoiceOfficeDeliveryScree
               colors: [
                 AppColors.primaryDark,
                 AppColors.primary,
-                Color(0xFF14634E),
+                AppColors.primaryLight,
               ],
             ),
           ),

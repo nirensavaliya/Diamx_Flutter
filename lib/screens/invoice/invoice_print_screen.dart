@@ -41,7 +41,7 @@ class InvoicePrintScreen extends StatelessWidget {
                       colors: [
                         AppColors.primaryDark,
                         AppColors.primary,
-                        Color(0xFF14634E),
+                        AppColors.primaryLight,
                       ],
                     ),
                   ),

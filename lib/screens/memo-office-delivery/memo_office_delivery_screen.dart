@@ -134,7 +134,7 @@ class _MemoOfficeDeliveryScreenState extends State<MemoOfficeDeliveryScreen> {
               colors: [
                 AppColors.primaryDark,
                 AppColors.primary,
-                Color(0xFF14634E),
+                AppColors.primaryLight,
               ],
             ),
           ),

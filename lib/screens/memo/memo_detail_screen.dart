@@ -205,7 +205,7 @@ class _MemoDetailScreenState extends State<MemoDetailScreen> {
               colors: [
                 AppColors.primaryDark,
                 AppColors.primary,
-                Color(0xFF14634E),
+                AppColors.primaryLight,
               ],
             ),
           ),
