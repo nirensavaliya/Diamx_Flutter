@@ -16,6 +16,10 @@ class GetStorageData {
   static String currencySymbol = "currencySymbol";
   static String currencyUsdRate = "currencyUsdRate";
 
+  static const String adminUsername = 'admin';
+  static const String adminPassword = 'Admin@123';
+  static const String isAdminLoggedIn = 'isAdminLoggedIn';
+
   /// <<< To save object data --------- >>>
   static saveString(String key, value) async {
     final box = GetStorage();
@@ -62,5 +66,24 @@ class GetStorageData {
   static bool containKey(String key) {
     final box = GetStorage();
     return box.hasData(key);
+  }
+
+
+//   for testing ui
+  static bool verifyAdmin(String username, String password) {
+    return username == adminUsername &&
+        password == adminPassword;
+  }
+
+  static Future<void> saveAdminLogin() async {
+    await GetStorage().write(isAdminLoggedIn, true);
+  }
+
+  static bool isAdminLogin() {
+    return GetStorage().read(isAdminLoggedIn) ?? false;
+  }
+
+  static Future<void> adminLogout() async {
+    await GetStorage().remove(isAdminLoggedIn);
   }
 }

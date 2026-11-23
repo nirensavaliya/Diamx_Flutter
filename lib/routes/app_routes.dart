@@ -17,4 +17,9 @@ class AppRoutes {
   static const invoiceOfficeDeliveryDetail = '/invoice-office-delivery-detail';
   static const invoiceOfficeDeliveryPrint = '/invoice-office-delivery-print';
 
+  static const String adminDashboard = '/adminDashboard';
+  static const String adminTransactions = '/adminDashboard';
+  static const String adminStock = '/adminDashboard';
+  static const String adminStoneDetails = '/adminDashboard';
+  static const String adminSettings = '/adminDashboard';
 }

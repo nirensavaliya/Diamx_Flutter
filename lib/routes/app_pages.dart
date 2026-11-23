@@ -20,6 +20,7 @@ import '../providers/memo_office_delivery_print_provider.dart';
 import '../providers/memo_office_delivery_provider.dart';
 import '../providers/memo_print_provider.dart';
 import '../providers/memo_provider.dart';
+import '../screens/admin/navigation/admin_navigation_screen.dart';
 import '../screens/company_code/company_code_screen.dart';
 import '../screens/invoice/invoice_detail_screen.dart';
 import '../screens/invoice/invoice_list_screen.dart';
@@ -197,5 +198,8 @@ class AppPages {
         child: const InvoiceOfficeDeliveryPrintScreen(),
       );
     },
+
+
+    AppRoutes.adminDashboard: (_) => const AdminNavigationScreen(),
   };
 }

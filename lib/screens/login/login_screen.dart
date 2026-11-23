@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/login_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../models/branch.dart';
+import '../../services/get_stroage_data.dart';
 import '../../utills/app_colors.dart';
 import '../../utills/app_font.dart';
 import '../../utills/app_images.dart';
@@ -241,6 +242,22 @@ class _LoginCard extends StatelessWidget {
 
   Future<void> _submit(BuildContext context) async {
     FocusScope.of(context).unfocus();
+
+    // Check admin credentials first.
+    final isAdmin = GetStorageData.verifyAdmin(
+      provider.usernameController.text.trim(),
+      provider.passwordController.text,
+    );
+
+    if (isAdmin) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.adminDashboard,
+            (route) => false,
+      );
+      return;
+    }
+    // Existing normal user login remains unchanged.
     final success = await provider.login();
 
     if (!context.mounted) return;
@@ -258,7 +275,7 @@ class _LoginCard extends StatelessWidget {
     Navigator.pushNamedAndRemoveUntil(
       context,
       AppRoutes.main,
-      (route) => false,
+          (route) => false,
     );
   }
 }

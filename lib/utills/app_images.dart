@@ -6,4 +6,11 @@ class AppImages{
   static const String imgTwoDiamond = "assets/images/img_two_diamond.png";
   static const String imgDiamond = "assets/images/img_diamond.png";
   static const String videoDiamondForSplash = "assets/videos/diamond_spin.mp4";
+
+//   Dashboard
+  static const String polishDiamond = "assets/images/diamond_dash.png";
+  static const String jewellery = "assets/images/jewellery.png";
+  static const String looseDiamond = "assets/images/diamond_dash.png";
+  static const String totalSales = "assets/images/sales.png";
+
 }
