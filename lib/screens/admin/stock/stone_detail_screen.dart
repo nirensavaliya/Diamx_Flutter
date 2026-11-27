@@ -151,76 +151,210 @@ class StoneDetailScreen extends StatelessWidget {
     );
   }
 
-  // -------------------------------------------------------------------------
-  // Stone Details Card
-  // -------------------------------------------------------------------------
+
 
   Widget _buildDetailsCard(_StatusStyle status) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
             color: _navy.withValues(alpha: 0.035),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            blurRadius: 7,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _DetailRow(
-                  label: 'Stone ID',
-                  value: item.id,
-                ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(
+                left: 5,
+                top: 2,
+                bottom: 2,
               ),
-              _StatusBadge(
-                label: status.label,
-                color: status.color,
-              ),
-            ],
-          ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // TOP ROW
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: _stoneInfoCell(
+                            'STONE ID',
+                            item.id,
+                            valueColor: _blue,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: _stoneInfoCell(
+                            'SHAPE',
+                            item.shape,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: _stoneInfoCell(
+                            'CARAT',
+                            item.carat,
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        _StatusBadge(
+                          label: status.label,
+                          color: status.color,
+                        ),
+                      ],
+                    ),
+                  ),
 
-          _DetailRow(
-            label: 'Shape',
-            value: item.shape,
-          ),
-          _DetailRow(
-            label: 'Carat',
-            value: item.carat,
-          ),
-          _DetailRow(
-            label: 'Color',
-            value: item.color,
-          ),
-          _DetailRow(
-            label: 'Clarity',
-            value: item.clarity,
-          ),
-          _DetailRow(
-            label: 'Cut',
-            value: item.cut,
-          ),
-          _DetailRow(
-            label: 'Rap Rate',
-            value: item.rapRate,
-          ),
-          _DetailRow(
-            label: 'Amount',
-            value: item.amount,
-            isLast: true,
-            valueColor: _blue,
-          ),
-        ],
+                  _stoneDivider(),
+
+                  // SECOND ROW
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _stoneInfoCell(
+                            'COLOR',
+                            item.color,
+                          ),
+                        ),
+                        Expanded(
+                          child: _stoneInfoCell(
+                            'CLARITY',
+                            item.clarity,
+                          ),
+                        ),
+                        Expanded(
+                          child: _stoneInfoCell(
+                            'CUT',
+                            item.cut,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  _stoneDivider(),
+
+                  // THIRD ROW
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _stoneInfoCell(
+                            'RAP RATE',
+                            item.rapRate,
+                          ),
+                        ),
+                        Expanded(
+                          child: _stoneInfoCell(
+                            'AMOUNT',
+                            item.amount,
+                            valueColor: _blue,
+                            valueSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // YELLOW LEFT INDICATOR
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 4,
+              child: Container(
+                color: const Color(0xFFF2C51D),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+
+// -------------------------------------------------------------------------
+// Stone Info Cell
+// -------------------------------------------------------------------------
+
+  Widget _stoneInfoCell(
+      String label,
+      dynamic value, {
+        Color? valueColor,
+        double valueSize = 11,
+      }) {
+    final displayValue =
+    value == null || value.toString().trim().isEmpty
+        ? '-'
+        : value.toString();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 8,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF9299A8),
+            letterSpacing: 0.2,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          displayValue,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: valueSize,
+            fontWeight: FontWeight.w700,
+            color: valueColor ?? _navy,
+          ),
+        ),
+      ],
+    );
+  }
+
+// -------------------------------------------------------------------------
+// Divider
+// -------------------------------------------------------------------------
+
+  Widget _stoneDivider() {
+    return Container(
+      height: 0.7,
+      color: _border,
+    );
+  }
+
+
 
   // -------------------------------------------------------------------------
   // Certificate & Media Section
@@ -678,9 +812,10 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      constraints: const BoxConstraints(maxWidth: 125),
       padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 5,
+        horizontal: 7,
+        vertical: 4,
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
@@ -691,16 +826,20 @@ class _StatusBadge extends StatelessWidget {
         children: [
           Icon(
             Icons.check_circle,
-            size: 12,
+            size: 11,
             color: color,
           ),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: color,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
           ),
         ],
@@ -708,7 +847,6 @@ class _StatusBadge extends StatelessWidget {
     );
   }
 }
-
 // ---------------------------------------------------------------------------
 // Media Button
 // ---------------------------------------------------------------------------

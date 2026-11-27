@@ -1,3 +1,4 @@
+import 'package:diamax_flutter/utills/global.dart';
 import 'package:flutter/material.dart';
 
 import '../../../utills/app_colors.dart';
@@ -29,60 +30,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  void _showLogoutDialog() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          title: Text(
-            'Logout',
-            style: TextStyle(
-              fontFamily: FontFamily.montserratBold,
-              fontSize: 18,
-              color: AppColors.primaryDark,
-            ),
-          ),
-          content: Text(
-            'Are you sure you want to logout?',
-            style: TextStyle(
-              fontFamily: FontFamily.montserratRegular,
-              fontSize: 13,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(
-                'Cancel',
-                style: TextStyle(
-                  fontFamily: FontFamily.montserratSemiBold,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                // Add your logout functionality here.
-              },
-              child: Text(
-                'Logout',
-                style: TextStyle(
-                  fontFamily: FontFamily.montserratBold,
-                  color: Colors.red,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   void _showComingSoon(String title) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -151,7 +98,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: Icons.logout_rounded,
               title: 'Logout',
               isLogout: true,
-              onTap: _showLogoutDialog,
+              onTap: () => showLogoutDialog(context),
             ),
           ],
         ),

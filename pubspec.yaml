@@ -67,13 +67,13 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
 
-#flutter_launcher_icons:
-#  android: true
-#  ios: true
-#  image_path: assets/images/app_icon_d.png
-#  adaptive_icon_background: "#FFFFFF"
-#  adaptive_icon_foreground: assets/images/app_icon_d.png
-#  remove_alpha_ios: true
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/images/app_logo_new.png
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: assets/images/app_logo_new.png
+  remove_alpha_ios: true
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

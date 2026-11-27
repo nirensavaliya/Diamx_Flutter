@@ -1,12 +1,16 @@
 
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import 'package:diamax_flutter/screens/admin/dashboard/transactions/transactions_screen.dart';
 import 'package:diamax_flutter/screens/admin/reports/reports_screen.dart';
 import 'package:diamax_flutter/screens/admin/stock/stock_screen.dart';
-import 'package:flutter/material.dart';
 
+import '../../../providers/admin_bottom_navigation_proivder.dart';
+import '../../../utills/app_colors.dart';
 import '../more/settings_screen.dart';
-import 'app_bottom_nav.dart';
 import '../dashboard/dashboard_screen.dart';
+import 'app_bottom_nav.dart';
 
 class AdminNavigationScreen extends StatefulWidget {
   const AdminNavigationScreen({super.key});
@@ -17,53 +21,45 @@ class AdminNavigationScreen extends StatefulWidget {
 }
 
 class _AdminNavigationScreenState extends State<AdminNavigationScreen> {
-  static const Color _backgroundColor = Color(0xFFF7F8FC);
-
-  int _currentIndex = 0;
-
-  late final List<Widget> _screens;
+  late final List<Widget> screens;
 
   @override
   void initState() {
     super.initState();
 
-    _screens = [
+    screens = [
       DashboardScreen(
-        onViewAllTransactions: () => _onTabChanged(1),
+        onViewAllTransactions: () {
+          context.read<AdminNavigationProvider>().goToTransactions();
+        },
       ),
       TransactionsScreen(
-        onBackTap: () => _onTabChanged(0),
+        onBackTap: () {
+          context.read<AdminNavigationProvider>().goToDashboard();
+        },
       ),
       const StockScreen(),
       const ReportsScreen(),
       SettingsScreen(
-        onBackTap: () => _onTabChanged(0),
+        onBackTap: () {
+          context.read<AdminNavigationProvider>().goToDashboard();
+        },
       ),
     ];
-  }
-
-  void _onTabChanged(int index) {
-    if (!mounted) return;
-
-    if (index < 0 || index >= _screens.length) return;
-
-    if (_currentIndex == index) return;
-
-    setState(() {
-      _currentIndex = index;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _backgroundColor,
+      backgroundColor: AppColors.background,
       body: Stack(
         children: [
           Positioned.fill(
             child: IndexedStack(
-              index: _currentIndex,
-              children: _screens,
+              index: context.select<AdminNavigationProvider, int>(
+                    (provider) => provider.currentIndex,
+              ),
+              children: screens,
             ),
           ),
 
@@ -73,9 +69,13 @@ class _AdminNavigationScreenState extends State<AdminNavigationScreen> {
             bottom: 0,
             child: SafeArea(
               top: false,
-              child: AppBottomNav(
-                currentIndex: _currentIndex,
-                onTap: _onTabChanged,
+              child: Consumer<AdminNavigationProvider>(
+                builder: (context, provider, child) {
+                  return AppBottomNav(
+                    currentIndex: provider.currentIndex,
+                    onTap: provider.changeTab,
+                  );
+                },
               ),
             ),
           ),

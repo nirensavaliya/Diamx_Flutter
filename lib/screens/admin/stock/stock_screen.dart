@@ -395,8 +395,6 @@ class _StockScreenState extends State<StockScreen> {
                         padding: const EdgeInsets.only(bottom: 8),
                         child: _StockCard(
                           item: stone,
-                          isFavorite: _favorites.contains(stone.id),
-                          onFavorite: () => _toggleFavorite(stone.id),
                           onTap: () => _openStone(stone),
                         ),
                       ),
@@ -1008,6 +1006,7 @@ class _SummaryItem extends StatelessWidget {
   }
 }
 
+
 // ---------------------------------------------------------------------------
 // Stock Card
 // ---------------------------------------------------------------------------
@@ -1015,37 +1014,28 @@ class _SummaryItem extends StatelessWidget {
 class _StockCard extends StatelessWidget {
   final StockItem item;
   final VoidCallback? onTap;
-  final VoidCallback? onFavorite;
-  final bool isFavorite;
 
   const _StockCard({
     required this.item,
     this.onTap,
-    this.onFavorite,
-    this.isFavorite = false,
   });
 
   static const Color _navy = Color(0xFF14233E);
-  static const Color _muted = Color(0xFF858EA2);
+  static const Color _blue = Color(0xFF1F6FEB);
   static const Color _border = Color(0xFFE8EBF2);
-  static const Color _green = Color(0xFF269B5B);
 
   @override
   Widget build(BuildContext context) {
     final status = _getStatusStyle(item.status);
 
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 9,
-            vertical: 8,
-          ),
           decoration: BoxDecoration(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _border),
             boxShadow: [
@@ -1056,211 +1046,214 @@ class _StockCard extends StatelessWidget {
               ),
             ],
           ),
-          child: Row(
-            children: [
-              // Diamond Image
-              Container(
-                width: 43,
-                height: 43,
-                padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3F5F9),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFFE5EAF2),
-                  ),
-                ),
-                child: Image.asset(
-                  AppImages.imgDiamond,
-                  fit: BoxFit.contain,
-                ),
-              ),
-
-              const SizedBox(width: 9),
-
-              // Stone Information
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ID + Status
-                    Row(
-                      children: [
-                        Text(
-                          item.id,
-                          style: TextStyle(
-                            fontFamily: FontFamily.montserratBold,
-                            fontSize: 10.5,
-                            color: _navy,
-                          ),
-                        ),
-                        const SizedBox(width: 7),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: status.color.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: Text(
-                            status.label,
-                            style: TextStyle(
-                              fontFamily: FontFamily.montserratBold,
-                              fontSize: 8,
-                              color: status.color,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Row(
+                    children: [
+                      // Grid content
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // TOP ROW
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(8, 6, 4, 6),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: _stoneInfoCell(
+                                      'STONE ID',
+                                      item.id,
+                                      valueColor: _blue,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: _stoneInfoCell('SHAPE', item.shape),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: _stoneInfoCell('CARAT', item.carat),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  _StatusBadge(
+                                    label: status.label,
+                                    color: status.color,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+
+                            _stoneDivider(),
+
+                            // SECOND ROW
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(8, 6, 4, 6),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: _stoneInfoCell('COLOR', item.color),
+                                  ),
+                                  Expanded(
+                                    child: _stoneInfoCell(
+                                        'CLARITY', item.clarity),
+                                  ),
+                                  Expanded(
+                                    child: _stoneInfoCell('CUT', item.cut),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            _stoneDivider(),
+
+                            // THIRD ROW
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(8, 6, 4, 6),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: _stoneInfoCell(
+                                      'RAP RATE',
+                                      item.rapRate,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: _stoneInfoCell(
+                                      'AMOUNT',
+                                      item.amount,
+                                      valueColor: _blue,
+                                      valueSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 3),
-
-                    // Diamond Details
-                    Text(
-                      '${item.shape} | ${item.carat} | ${item.color} | ${item.clarity} | ${item.cut}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 9,
-                        color: Color(0xFF566176),
-                        fontWeight: FontWeight.w500,
                       ),
-                    ),
 
-                    const SizedBox(height: 4),
-
-                    // Rap Rate + Amount
-                    Wrap(
-                      spacing: 9,
-                      runSpacing: 2,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              'Rap: ',
-                              style: TextStyle(
-                                fontSize: 8.5,
-                                color: _muted,
-                              ),
-                            ),
-                            Text(
-                              item.rapRate,
-                              style: const TextStyle(
-                                fontSize: 8.5,
-                                fontWeight: FontWeight.w700,
-                                color: _navy,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              'Amount: ',
-                              style: TextStyle(
-                                fontSize: 8.5,
-                                color: _muted,
-                              ),
-                            ),
-                            Text(
-                              item.amount,
-                              style: const TextStyle(
-                                fontSize: 8.5,
-                                fontWeight: FontWeight.w700,
-                                color: _green,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(width: 5),
-
-              // Favorite + View
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  GestureDetector(
-                    onTap: onFavorite,
-                    child: Icon(
-                      isFavorite
-                          ? Icons.star_rounded
-                          : Icons.star_border_rounded,
-                      color: isFavorite
-                          ? const Color(0xFFFFB52E)
-                          : const Color(0xFF9AA4B7),
-                      size: 19,
-                    ),
-                  ),
-
-                  const SizedBox(height: 5),
-
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _navy,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      children: [
-                        Text(
-                          'View',
-                          style: TextStyle(
-                            fontSize: 8.5,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        SizedBox(width: 2),
-                        Icon(
+                      // RIGHT ARROW (card detail kholne ke liye)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 4),
+                        child: Icon(
                           Icons.chevron_right_rounded,
-                          size: 12,
-                          color: Colors.white,
+                          size: 26,
+                          color: Color(0xFF858EA2),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ],
+                ),
+
+                // YELLOW LEFT INDICATOR
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 4,
+                  child: Container(color: const Color(0xFFF2C51D)),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
+  Widget _stoneInfoCell(
+      String label,
+      dynamic value, {
+        Color? valueColor,
+        double valueSize = 11,
+      }) {
+    final displayValue = value == null || value.toString().trim().isEmpty
+        ? '-'
+        : value.toString();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 8,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF9299A8),
+            letterSpacing: 0.2,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          displayValue,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: valueSize,
+            fontWeight: FontWeight.w500,
+            color: valueColor ?? _navy,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _stoneDivider() => Container(height: 0.7, color: _border);
+
   static _StatusStyle _getStatusStyle(StockStatus status) {
     switch (status) {
       case StockStatus.available:
-        return const _StatusStyle(
-          'Available',
-          Color(0xFF269B5B),
-        );
+        return const _StatusStyle('Available', Color(0xFF269B5B));
       case StockStatus.memo:
-        return const _StatusStyle(
-          'Memo',
-          Color(0xFFEF9B32),
-        );
+        return const _StatusStyle('Memo', Color(0xFFEF9B32));
       case StockStatus.hold:
-        return const _StatusStyle(
-          'Hold',
-          Color(0xFF9652D4),
-        );
+        return const _StatusStyle('Hold', Color(0xFF9652D4));
     }
   }
 }
+
+class _StatusBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _StatusBadge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle, size: 10, color: color),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 
 // ---------------------------------------------------------------------------
 // Bottom Actions

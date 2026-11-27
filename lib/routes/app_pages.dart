@@ -1,3 +1,4 @@
+import 'package:diamax_flutter/providers/admin_bottom_navigation_proivder.dart';
 import 'package:diamax_flutter/screens/invoice-office-delivery/invoice_office_delivery_detail_screen.dart';
 import 'package:diamax_flutter/screens/invoice-office-delivery/invoice_office_delivery_print_screen.dart';
 import 'package:diamax_flutter/screens/invoice-office-delivery/invoice_office_delivery_screen.dart';
@@ -199,7 +200,9 @@ class AppPages {
       );
     },
 
-
-    AppRoutes.adminDashboard: (_) => const AdminNavigationScreen(),
+    AppRoutes.adminDashboard: (_)  => ChangeNotifierProvider(
+      create: (_) => AdminNavigationProvider(),
+      child: const AdminNavigationScreen(),
+    ),
   };
 }

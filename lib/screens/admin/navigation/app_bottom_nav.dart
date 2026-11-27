@@ -84,16 +84,13 @@ class _AppBottomNavState extends State<AppBottomNav> {
         bottomBarWidth: MediaQuery.of(context).size.width,
         removeMargins: false,
         notchBottomBarController: _controller,
-
         color: AppColors.primaryDark,
         notchColor: AppColors.accent,
-
         notchGradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [AppColors.accent, AppColors.primaryLight],
         ),
-
         showShadow: false,
         shadowElevation: 12,
         elevation: 8,

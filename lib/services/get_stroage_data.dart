@@ -16,7 +16,7 @@ class GetStorageData {
   static String currencySymbol = "currencySymbol";
   static String currencyUsdRate = "currencyUsdRate";
 
-  static const String adminUsername = 'admin';
+  static const String adminUsername = 'Admin';
   static const String adminPassword = 'Admin@123';
   static const String isAdminLoggedIn = 'isAdminLoggedIn';
 
@@ -71,8 +71,10 @@ class GetStorageData {
 
 //   for testing ui
   static bool verifyAdmin(String username, String password) {
-    return username == adminUsername &&
-        password == adminPassword;
+    return username.trim().isNotEmpty && password.isNotEmpty;
+
+    // return username == adminUsername &&
+    //     password == adminPassword;
   }
 
   static Future<void> saveAdminLogin() async {
